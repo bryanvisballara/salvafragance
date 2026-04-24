@@ -338,7 +338,7 @@ function InstagramIcon() {
   )
 }
 
-function ProductCarousel({ images, name, onImageClick, onAddToCart, onQuickView }) {
+function ProductCarousel({ images, name, onImageClick, onAddToCart, onQuickView, showOverlayActions = true }) {
   const [activeIndex, setActiveIndex] = useState(0)
   const safeImages = images.length ? images : [fallbackImage]
   const touchStartXRef = useRef(null)
@@ -399,26 +399,28 @@ function ProductCarousel({ images, name, onImageClick, onAddToCart, onQuickView 
           className="product-image"
         />
       )}
-      <div className="product-hover-actions">
-        <button
-          type="button"
-          className="product-hover-actions__button"
-          onClick={onAddToCart}
-          aria-label={`Agregar ${name} al carrito`}
-          title="Agregar al carrito"
-        >
-          <CartIcon />
-        </button>
-        <button
-          type="button"
-          className="product-hover-actions__button"
-          onClick={onQuickView}
-          aria-label={`Vista rápida de ${name}`}
-          title="Vista rápida"
-        >
-          <QuickViewIcon />
-        </button>
-      </div>
+      {showOverlayActions ? (
+        <div className="product-hover-actions">
+          <button
+            type="button"
+            className="product-hover-actions__button"
+            onClick={onAddToCart}
+            aria-label={`Agregar ${name} al carrito`}
+            title="Agregar al carrito"
+          >
+            <CartIcon />
+          </button>
+          <button
+            type="button"
+            className="product-hover-actions__button"
+            onClick={onQuickView}
+            aria-label={`Vista rápida de ${name}`}
+            title="Vista rápida"
+          >
+            <QuickViewIcon />
+          </button>
+        </div>
+      ) : null}
       {safeImages.length > 1 ? (
         <>
           <button type="button" className="carousel-arrow carousel-arrow--prev" onClick={() => goToSlide(activeIndex - 1)}>
@@ -1249,6 +1251,7 @@ function App() {
   const [selectedShippingZoneId, setSelectedShippingZoneId] = useState('')
   const [quickViewProduct, setQuickViewProduct] = useState(null)
   const [confirmationProductName, setConfirmationProductName] = useState('')
+  const [decantQuantities, setDecantQuantities] = useState({})
   const { confirmationState, isConfirmationVisible, showConfirmation, startClosingConfirmation } = useCartConfirmation()
 
   useEffect(() => {
@@ -1273,11 +1276,17 @@ function App() {
     loadStorefront()
   }, [])
 
+  const hasDecantProducts = useMemo(
+    () => payload.products.some((product) => getVisibleDecantPrices(product, payload.decantSettings).length > 0),
+    [payload.decantSettings, payload.products],
+  )
+
   useEffect(() => {
     if (activeCategory === 'decants' && !hasDecantProducts) {
       setActiveCategory('all')
     }
   }, [activeCategory, hasDecantProducts])
+
   const filteredProducts = useMemo(() => {
     if (activeCategory === 'decants') {
       return payload.products.filter((product) => getVisibleDecantPrices(product, payload.decantSettings).length > 0)
@@ -1289,11 +1298,6 @@ function App() {
 
     return payload.products.filter((product) => product.category?._id === activeCategory)
   }, [activeCategory, payload.decantSettings, payload.products])
-
-  const hasDecantProducts = useMemo(
-    () => payload.products.some((product) => getVisibleDecantPrices(product, payload.decantSettings).length > 0),
-    [payload.decantSettings, payload.products],
-  )
 
   const cartCount = useMemo(
     () => Object.values(cartItems).reduce((total, quantity) => total + quantity, 0),
@@ -1404,6 +1408,13 @@ function App() {
     handleAddToCart(product._id, quantity)
     setConfirmationProductName(product.name)
     showConfirmation()
+  }
+
+  function handleDecantQuantityChange(productId, nextQuantity) {
+    setDecantQuantities((current) => ({
+      ...current,
+      [productId]: Math.max(1, nextQuantity),
+    }))
   }
 
   function handleOpenCart() {
@@ -1844,6 +1855,7 @@ function App() {
                     const ratingData = getProductRatingData(product)
                     const visibleDecantPrices = getVisibleDecantPrices(product, payload.decantSettings)
                     const isDecantView = activeCategory === 'decants'
+                    const decantQuantity = Math.max(1, decantQuantities[product._id] || 1)
 
                     return (
                       <article
@@ -1857,6 +1869,7 @@ function App() {
                           onImageClick={() => handleOpenProduct(product)}
                           onAddToCart={() => handleAddToCartWithConfirmation(product, 1)}
                           onQuickView={() => handleOpenQuickView(product)}
+                          showOverlayActions={!isDecantView}
                         />
                         <div className="product-body">
                           <div className="product-meta">
@@ -1865,14 +1878,42 @@ function App() {
                           <h3>{product.name}</h3>
                           <StarRating rating={ratingData.rating} reviews={ratingData.reviews} centered />
                           {isDecantView ? (
-                            <div className="decant-price-stack">
-                              {visibleDecantPrices.map((decantPrice) => (
-                                <div key={decantPrice.sizeId} className="decant-price-stack__item">
-                                  <span>{decantPrice.label}</span>
-                                  <strong>{formatCurrency(decantPrice.price)}</strong>
+                            <>
+                              <div className="decant-price-stack">
+                                {visibleDecantPrices.map((decantPrice) => (
+                                  <div key={decantPrice.sizeId} className="decant-price-stack__item">
+                                    <span>{decantPrice.label}</span>
+                                    <strong>{formatCurrency(decantPrice.price)}</strong>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="decant-card-actions">
+                                <div className="decant-quantity" aria-label={`Cantidad de ${product.name}`}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDecantQuantityChange(product._id, decantQuantity - 1)}
+                                    aria-label={`Reducir cantidad de ${product.name}`}
+                                  >
+                                    -
+                                  </button>
+                                  <span>{decantQuantity}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDecantQuantityChange(product._id, decantQuantity + 1)}
+                                    aria-label={`Aumentar cantidad de ${product.name}`}
+                                  >
+                                    +
+                                  </button>
                                 </div>
-                              ))}
-                            </div>
+                                <button
+                                  type="button"
+                                  className="button-primary decant-card-actions__button"
+                                  onClick={() => handleAddToCartWithConfirmation(product, decantQuantity)}
+                                >
+                                  Agregar al carrito
+                                </button>
+                              </div>
+                            </>
                           ) : (
                             <div className="price-stack price-stack--catalog">
                               <span>{formatCurrency(product.basePrice)}</span>

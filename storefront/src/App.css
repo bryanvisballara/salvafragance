@@ -1813,6 +1813,45 @@
   font-size: 1rem;
 }
 
+.decant-card-actions {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.decant-quantity {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(233, 198, 128, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.decant-quantity button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.decant-quantity span {
+  color: var(--text-primary);
+  text-align: center;
+  font-weight: 600;
+}
+
+.decant-card-actions__button {
+  width: 100%;
+  min-width: 0;
+}
+
 .product-actions {
   display: flex;
   gap: 10px;
@@ -2720,6 +2759,25 @@
   .decant-price-stack__item span,
   .decant-price-stack__item strong {
     font-size: 0.74rem;
+  }
+
+  .decant-card-actions {
+    gap: 8px;
+  }
+
+  .decant-quantity {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+  }
+
+  .decant-quantity button {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .decant-card-actions__button {
+    padding: 10px 12px;
+    font-size: 0.82rem;
   }
 
   .product-card,
