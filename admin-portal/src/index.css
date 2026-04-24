@@ -1,0 +1,73 @@
+:root {
+  --bg: #090909;
+  --panel: rgba(255, 255, 255, 0.03);
+  --text-primary: #f7f1e6;
+  --text-muted: #b5a78e;
+  --gold-soft: #d9bc84;
+  --gold-strong: #f1d08f;
+  --border: rgba(233, 198, 128, 0.14);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+  --sans: 'Manrope', 'Segoe UI', sans-serif;
+  --heading: 'Cormorant Garamond', Georgia, serif;
+
+  font-family: var(--sans);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-primary);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading);
+  font-weight: 600;
+  line-height: 0.95;
+  color: var(--text-primary);
+}
+
+h1 {
+  font-size: clamp(3rem, 7vw, 5.6rem);
+}
+
+h2 {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+}
+
+h3 {
+  font-size: clamp(1.5rem, 2.8vw, 2rem);
+}
