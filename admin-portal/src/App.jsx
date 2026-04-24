@@ -1,4 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  closestCenter,
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import './App.css'
 
 const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
@@ -142,6 +156,73 @@ function reorderCategoryList(categories, draggedCategoryId, targetCategoryId) {
   return nextCategories
 }
 
+function reorderProductImageList(imageUrls, draggedImageUrl, targetImageUrl) {
+  if (!draggedImageUrl || !targetImageUrl || draggedImageUrl === targetImageUrl) {
+    return imageUrls
+  }
+
+  const nextImageUrls = [...imageUrls]
+  const draggedIndex = nextImageUrls.findIndex((imageUrl) => imageUrl === draggedImageUrl)
+  const targetIndex = nextImageUrls.findIndex((imageUrl) => imageUrl === targetImageUrl)
+
+  if (draggedIndex === -1 || targetIndex === -1) {
+    return imageUrls
+  }
+
+  const [draggedImageUrlValue] = nextImageUrls.splice(draggedIndex, 1)
+  nextImageUrls.splice(targetIndex, 0, draggedImageUrlValue)
+
+  return nextImageUrls
+}
+
+function SortableUploadedProductImage({ imageUrl, imageIndex, isDeleting, onRemove }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: imageUrl,
+    disabled: isDeleting,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={[
+        'uploaded-preview-card',
+        isDragging ? 'uploaded-preview-card--dragging' : '',
+      ].filter(Boolean).join(' ')}
+    >
+      <button
+        type="button"
+        className="uploaded-preview__remove"
+        aria-label="Borrar imagen subida"
+        onClick={onRemove}
+        disabled={isDeleting}
+      >
+        {isDeleting ? '...' : '×'}
+      </button>
+      <div
+        className="uploaded-preview__drag-surface"
+        {...attributes}
+        {...listeners}
+      >
+        <span className="uploaded-preview__order-badge">{imageIndex + 1}</span>
+        <img src={imageUrl} alt="Vista previa del perfume" className="uploaded-preview" />
+      </div>
+    </div>
+  )
+}
+
 function SuccessIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -206,6 +287,13 @@ function App() {
   const [isSavingCategoryOrder, setIsSavingCategoryOrder] = useState(false)
   const [isSendingMarketingEmail, setIsSendingMarketingEmail] = useState(false)
   const [expandedProductDescriptions, setExpandedProductDescriptions] = useState({})
+  const productImageDragSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+  )
 
   const fallbackShippingZone = useMemo(
     () => shippingZones.find((zone) => isFallbackShippingZone(zone)) || null,
@@ -586,6 +674,28 @@ function App() {
     } finally {
       setDeletingImageUrl('')
     }
+  }
+
+  function handleProductImageSortEnd(event) {
+    const { active, over } = event
+
+    if (!active?.id || !over?.id || active.id === over.id) {
+      return
+    }
+
+    setProductForm((current) => {
+      const oldIndex = current.imageUrls.findIndex((imageUrl) => imageUrl === active.id)
+      const newIndex = current.imageUrls.findIndex((imageUrl) => imageUrl === over.id)
+
+      if (oldIndex === -1 || newIndex === -1) {
+        return current
+      }
+
+      return {
+        ...current,
+        imageUrls: arrayMove(current.imageUrls, oldIndex, newIndex),
+      }
+    })
   }
 
   async function loadDashboardData(activeToken = token) {
@@ -1270,22 +1380,28 @@ function App() {
                   rows="4"
                 />
               </label>
-              <div className="uploaded-preview-grid">
-                {productForm.imageUrls.map((imageUrl) => (
-                  <div key={imageUrl} className="uploaded-preview-card">
-                    <button
-                      type="button"
-                      className="uploaded-preview__remove"
-                      aria-label="Borrar imagen subida"
-                      onClick={() => handleRemoveUploadedProductImage(imageUrl)}
-                      disabled={deletingImageUrl === imageUrl}
-                    >
-                      {deletingImageUrl === imageUrl ? '...' : '×'}
-                    </button>
-                    <img src={imageUrl} alt="Vista previa del perfume" className="uploaded-preview" />
+              <p className="section-helper section-helper--tight">
+                Arrastra las imágenes de izquierda a derecha para definir el orden que se verá en el storefront.
+              </p>
+              <DndContext
+                sensors={productImageDragSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleProductImageSortEnd}
+              >
+                <SortableContext items={productForm.imageUrls} strategy={rectSortingStrategy}>
+                  <div className="uploaded-preview-grid">
+                    {productForm.imageUrls.map((imageUrl, imageIndex) => (
+                      <SortableUploadedProductImage
+                        key={imageUrl}
+                        imageUrl={imageUrl}
+                        imageIndex={imageIndex}
+                        isDeleting={deletingImageUrl === imageUrl}
+                        onRemove={() => handleRemoveUploadedProductImage(imageUrl)}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
               <button type="submit" disabled={isUploadingImages || Boolean(deletingImageUrl)}>
                 {isUploadingImages
                   ? 'Subiendo imágenes...'

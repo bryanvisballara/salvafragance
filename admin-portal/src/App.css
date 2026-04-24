@@ -810,6 +810,13 @@
 .uploaded-preview-card {
   position: relative;
   isolation: isolate;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.uploaded-preview-card--dragging {
+  z-index: 3;
+  transform: scale(0.98);
+  box-shadow: 0 24px 42px rgba(0, 0, 0, 0.34);
 }
 
 .uploaded-preview {
@@ -818,6 +825,38 @@
   border-radius: 18px;
   object-fit: cover;
   border: 1px solid rgba(233, 198, 128, 0.12);
+}
+
+.uploaded-preview__drag-surface {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+}
+
+.uploaded-preview__drag-surface:active {
+  cursor: grabbing;
+}
+
+.uploaded-preview__order-badge {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  min-width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 247, 225, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  background: linear-gradient(180deg, rgba(20, 15, 6, 0.86), rgba(20, 15, 6, 0.72));
+  color: #fff7e1;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.3);
+  z-index: 1;
 }
 
 .uploaded-preview__remove {
@@ -857,6 +896,10 @@
 .section-helper {
   margin: 0 0 18px;
   color: var(--text-muted);
+}
+
+.section-helper--tight {
+  margin-top: -8px;
 }
 
 .toggle-field {

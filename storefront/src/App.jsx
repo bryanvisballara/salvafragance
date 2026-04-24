@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import './App.css'
 
 const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
@@ -82,6 +83,61 @@ function buildCartWhatsAppLink(items, shippingZone = null) {
   ].join('\n')
 
   return buildWhatsAppUrl(message)
+}
+
+function getPaymentMethodLabel(paymentMethod) {
+  if (paymentMethod === 'cash_on_delivery') {
+    return 'Efectivo contra entrega'
+  }
+
+  if (paymentMethod === 'online') {
+    return 'Pago en línea'
+  }
+
+  return 'Sin definir'
+}
+
+function getCashOnDeliverySurcharge(baseTotalAmount, paymentMethod) {
+  if (paymentMethod !== 'cash_on_delivery') {
+    return 0
+  }
+
+  return baseTotalAmount * 0.05
+}
+
+function buildCheckoutWhatsAppLink(checkoutPayload, totalAmount) {
+  const customerName = `${checkoutPayload.customer.firstName} ${checkoutPayload.customer.lastName}`.trim()
+  const itemLines = checkoutPayload.items.map(
+    (item) => `- ${item.name} x${item.quantity} (${formatCurrency(item.lineTotal)})`,
+  )
+  const paymentMethodLabel = getPaymentMethodLabel(checkoutPayload.paymentMethod)
+  const discountLabel = checkoutPayload.discountAmount > 0
+    ? `Descuento: ${formatCurrency(checkoutPayload.discountAmount)}`
+    : 'Descuento: Sin descuento'
+  const surchargeLabel = checkoutPayload.surchargeAmount > 0
+    ? `Recargo contra entrega: ${formatCurrency(checkoutPayload.surchargeAmount)}`
+    : null
+
+  return buildWhatsAppUrl([
+    `Hola, quiero confirmar mi pedido ${checkoutPayload.reference}.`,
+    '',
+    `Cliente: ${customerName}`,
+    `Documento: ${checkoutPayload.customer.documentType} ${checkoutPayload.customer.documentNumber}`,
+    `Teléfono: ${checkoutPayload.customer.phone}`,
+    `Correo: ${checkoutPayload.customer.email}`,
+    `Dirección: ${checkoutPayload.customer.address}, ${checkoutPayload.customer.neighborhood}`,
+    `Ciudad: ${checkoutPayload.customer.city}, ${checkoutPayload.customer.state}`,
+    `Método de pago: ${paymentMethodLabel}`,
+    '',
+    'Productos:',
+    ...itemLines,
+    '',
+    `Subtotal: ${formatCurrency(checkoutPayload.subtotalAmount)}`,
+    discountLabel,
+    `Envío (${checkoutPayload.shippingZone.place}): ${formatCurrency(checkoutPayload.shippingZone.price)}`,
+    ...(surchargeLabel ? [surchargeLabel] : []),
+    `Total: ${formatCurrency(totalAmount)}`,
+  ].join('\n'))
 }
 
 function slugify(value) {
@@ -216,7 +272,11 @@ function useCartConfirmation() {
 }
 
 function CartConfirmationModal({ productName, confirmationState }) {
-  return (
+  if (typeof document === 'undefined') {
+    return null
+  }
+
+  return createPortal(
     <div
       className={confirmationState === 'closing' ? 'cart-confirmation-modal cart-confirmation-modal--closing' : 'cart-confirmation-modal'}
       role="alertdialog"
@@ -232,7 +292,8 @@ function CartConfirmationModal({ productName, confirmationState }) {
         <h2>Producto agregado</h2>
         <p>{productName} ya está en tu carrito.</p>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -257,16 +318,51 @@ function InstagramIcon() {
 function ProductCarousel({ images, name, onImageClick, onAddToCart, onQuickView }) {
   const [activeIndex, setActiveIndex] = useState(0)
   const safeImages = images.length ? images : [fallbackImage]
+  const touchStartXRef = useRef(null)
+  const suppressTapRef = useRef(false)
 
   function goToSlide(nextIndex) {
     const normalized = (nextIndex + safeImages.length) % safeImages.length
     setActiveIndex(normalized)
   }
 
+  function handleTouchStart(event) {
+    touchStartXRef.current = event.touches[0]?.clientX ?? null
+    suppressTapRef.current = false
+  }
+
+  function handleTouchEnd(event) {
+    if (touchStartXRef.current == null || safeImages.length <= 1) {
+      touchStartXRef.current = null
+      return
+    }
+
+    const touchEndX = event.changedTouches[0]?.clientX ?? touchStartXRef.current
+    const deltaX = touchEndX - touchStartXRef.current
+    touchStartXRef.current = null
+
+    if (Math.abs(deltaX) < 36) {
+      return
+    }
+
+    suppressTapRef.current = true
+    goToSlide(deltaX < 0 ? activeIndex + 1 : activeIndex - 1)
+  }
+
+  function handleImageActivate(event) {
+    if (suppressTapRef.current) {
+      event.preventDefault()
+      suppressTapRef.current = false
+      return
+    }
+
+    onImageClick?.()
+  }
+
   return (
-    <div className="product-carousel">
+    <div className="product-carousel" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {onImageClick ? (
-        <button type="button" className="product-image-button" onClick={onImageClick} aria-label={`Ver detalle de ${name}`}>
+        <button type="button" className="product-image-button" onClick={handleImageActivate} aria-label={`Ver detalle de ${name}`}>
           <img
             src={safeImages[activeIndex]}
             alt={name}
@@ -368,6 +464,7 @@ function CheckoutPage({
   discountAmount,
   discountedSubtotalAmount,
   shippingAmount,
+  surchargeAmount,
   totalAmount,
   onBack,
   onFieldChange,
@@ -425,7 +522,7 @@ function CheckoutPage({
           <div className="checkout-card__heading">
             <span className="cart-eyebrow">Checkout</span>
             <h1>Datos para continuar al pago</h1>
-            <p>Completa la información para pasar a la pasarela de pagos.</p>
+            <p>Completa la información para continuar con tu pedido y elegir cómo pagar.</p>
           </div>
 
           <form className="purchase-form" onSubmit={onSubmit}>
@@ -497,6 +594,19 @@ function CheckoutPage({
                 autoComplete="email"
                 required
               />
+            </label>
+
+            <label className="checkout-field checkout-field--full">
+              <span>Método de pago</span>
+              <select
+                value={formValues.paymentMethod}
+                onChange={(event) => onFieldChange('paymentMethod', event.target.value)}
+                required
+              >
+                <option value="">Selecciona un método de pago</option>
+                <option value="cash_on_delivery">Efectivo contra entrega</option>
+                <option value="online">Pago en línea</option>
+              </select>
             </label>
 
             <label className="checkout-field checkout-field--full">
@@ -587,7 +697,13 @@ function CheckoutPage({
             {message ? <p className="status-copy status-copy--error purchase-form__full">{message}</p> : null}
 
             <button type="submit" className="button-primary purchase-form__submit" disabled={isSubmitting || !items.length}>
-              {isSubmitting ? 'Redirigiendo...' : 'Continuar'}
+              {isSubmitting
+                ? formValues.paymentMethod === 'cash_on_delivery'
+                  ? 'Abriendo WhatsApp...'
+                  : 'Redirigiendo al pago...'
+                : formValues.paymentMethod === 'cash_on_delivery'
+                  ? 'Confirmar por WhatsApp'
+                  : 'Continuar al pago'}
             </button>
           </form>
         </article>
@@ -629,6 +745,10 @@ function CheckoutPage({
             <div>
               <span>Envío</span>
               <strong>{selectedShippingZone ? formatCurrency(shippingAmount) : 'Por seleccionar'}</strong>
+            </div>
+            <div>
+              <span>Recargo contra entrega</span>
+              <strong>{surchargeAmount > 0 ? formatCurrency(surchargeAmount) : 'No aplica'}</strong>
             </div>
             <div className="checkout-totals__coupon">
               <span>Cupón</span>
@@ -945,6 +1065,8 @@ function CartPage({ items, subtotalAmount, onBack, onIncrease, onDecrease, onRem
 function ProductDetailView({ product, onBack, onAddToCart, onBuyNow, onOpenFullProduct, isQuickView = false }) {
   const ratingData = getProductRatingData(product)
   const deliveryEstimate = formatDeliveryEstimate()
+  const [isQuickDescriptionExpanded, setIsQuickDescriptionExpanded] = useState(false)
+  const productDescription = product.description || 'Una selección original con presencia elegante y salida memorable para quienes buscan una firma olfativa distinta.'
 
   return (
     <section className={isQuickView ? 'product-detail product-detail--modal' : 'product-detail'}>
@@ -972,9 +1094,19 @@ function ProductDetailView({ product, onBack, onAddToCart, onBuyNow, onOpenFullP
             <strong>{formatCurrency(product.offerPrice)}</strong>
           </div>
 
-          <p className="detail-description">
-            {product.description || 'Una selección original con presencia elegante y salida memorable para quienes buscan una firma olfativa distinta.'}
+          <p className={isQuickView && !isQuickDescriptionExpanded ? 'detail-description detail-description--clamped' : 'detail-description'}>
+            {productDescription}
           </p>
+
+          {isQuickView ? (
+            <button
+              type="button"
+              className="detail-description-toggle"
+              onClick={() => setIsQuickDescriptionExpanded((current) => !current)}
+            >
+              {isQuickDescriptionExpanded ? 'Ver menos' : 'Ver más'}
+            </button>
+          ) : null}
 
           <div className="detail-actions">
             <button type="button" className="button-secondary detail-action" onClick={() => onAddToCart(product._id, 1)}>
@@ -991,7 +1123,7 @@ function ProductDetailView({ product, onBack, onAddToCart, onBuyNow, onOpenFullP
 
           {isQuickView ? (
             <button type="button" className="detail-more-link" onClick={() => onOpenFullProduct(product)}>
-              Ver más detalles
+              Abrir ficha completa
             </button>
           ) : null}
 
@@ -1029,7 +1161,11 @@ function QuickViewModal({ product, onClose, onAddToCart, onOpenFullProduct, isCo
     }
   }, [isConfirmationVisible, onClose, onCloseConfirmation])
 
-  return (
+  if (typeof document === 'undefined') {
+    return null
+  }
+
+  return createPortal(
     <div className="quick-view-modal" role="dialog" aria-modal="true" aria-label={`Vista rápida de ${product.name}`}>
       <button type="button" className="quick-view-modal__backdrop" onClick={onClose} aria-label="Cerrar vista rápida" />
       <div className="quick-view-modal__panel">
@@ -1043,7 +1179,8 @@ function QuickViewModal({ product, onClose, onAddToCart, onOpenFullProduct, isCo
           isQuickView
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -1070,6 +1207,7 @@ function App() {
     documentNumber: '',
     phone: '',
     email: '',
+    paymentMethod: '',
     address: '',
     neighborhood: '',
     state: '',
@@ -1179,7 +1317,9 @@ function App() {
   const checkoutDiscountAmount = Number(appliedCheckoutCoupon?.discountAmount || 0)
   const cartDiscountedSubtotal = Math.max(0, cartSubtotal - checkoutDiscountAmount)
   const cartShippingAmount = Number(selectedShippingZone?.price || 0)
-  const cartTotalAmount = cartDiscountedSubtotal + cartShippingAmount
+  const cartBaseTotalAmount = cartDiscountedSubtotal + cartShippingAmount
+  const cartSurchargeAmount = getCashOnDeliverySurcharge(cartBaseTotalAmount, purchaseForm.paymentMethod)
+  const cartTotalAmount = cartBaseTotalAmount + cartSurchargeAmount
 
   useEffect(() => {
     if (!selectedShippingZoneId) {
@@ -1424,8 +1564,13 @@ function App() {
       return
     }
 
-    if (!paymentGatewayUrl) {
-      setPurchaseMessage('La pasarela de pagos aún no está configurada.')
+    if (!purchaseForm.paymentMethod) {
+      setPurchaseMessage('Selecciona un método de pago para continuar.')
+      return
+    }
+
+    if (purchaseForm.paymentMethod === 'online' && !paymentGatewayUrl) {
+      setPurchaseMessage('La pasarela de pago aún no está configurada.')
       return
     }
 
@@ -1442,6 +1587,7 @@ function App() {
           ...purchaseForm,
           city: resolvedCity,
         },
+        paymentMethod: purchaseForm.paymentMethod,
         items: cartProducts.map((item) => ({
           productId: item.product._id,
           name: item.product.name,
@@ -1465,6 +1611,8 @@ function App() {
           : null,
         subtotalAmount: cartSubtotal,
         discountAmount: checkoutDiscountAmount,
+        surchargeAmount: cartSurchargeAmount,
+        totalAmount: cartTotalAmount,
       }
 
       await fetch(`${apiBaseUrl}/storefront/checkout/admin-notify`, {
@@ -1478,8 +1626,10 @@ function App() {
           items: checkoutPayload.items,
           shippingZone: checkoutPayload.shippingZone,
           coupon: checkoutPayload.coupon,
+          paymentMethod: checkoutPayload.paymentMethod,
           baseSubtotalAmount: cartBaseSubtotal,
           discountAmount: Math.max(0, cartBaseSubtotal - cartSubtotal) + checkoutDiscountAmount,
+          surchargeAmount: cartSurchargeAmount,
           totalAmount: cartTotalAmount,
         }),
       }).catch((error) => {
@@ -1487,6 +1637,13 @@ function App() {
       })
 
       window.sessionStorage.setItem('saval-checkout-payload', JSON.stringify(checkoutPayload))
+      const whatsappOrderUrl = buildCheckoutWhatsAppLink(checkoutPayload, cartTotalAmount)
+      window.sessionStorage.setItem('saval-checkout-whatsapp-url', whatsappOrderUrl)
+
+      if (purchaseForm.paymentMethod === 'cash_on_delivery') {
+        window.location.assign(whatsappOrderUrl)
+        return
+      }
 
       const nextUrl = new URL(paymentGatewayUrl, window.location.origin)
       nextUrl.searchParams.set('reference', reference)
@@ -1500,6 +1657,11 @@ function App() {
       nextUrl.searchParams.set('customer_state', purchaseForm.state)
       nextUrl.searchParams.set('customer_city', resolvedCity)
       nextUrl.searchParams.set('shipping_zone', resolvedCity)
+      nextUrl.searchParams.set('payment_method', purchaseForm.paymentMethod)
+      nextUrl.searchParams.set('return_url', whatsappOrderUrl)
+      nextUrl.searchParams.set('success_url', whatsappOrderUrl)
+      nextUrl.searchParams.set('redirect_url', whatsappOrderUrl)
+      nextUrl.searchParams.set('whatsapp_url', whatsappOrderUrl)
 
       window.location.assign(nextUrl.toString())
     } catch (error) {
@@ -1567,6 +1729,7 @@ function App() {
             discountAmount={checkoutDiscountAmount}
             discountedSubtotalAmount={cartDiscountedSubtotal}
             shippingAmount={cartShippingAmount}
+            surchargeAmount={cartSurchargeAmount}
             totalAmount={cartTotalAmount}
             onBack={handleOpenCartPage}
             onFieldChange={handleCheckoutFieldChange}
