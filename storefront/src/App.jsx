@@ -65,7 +65,7 @@ function buildWhatsAppLink(productName) {
 
 function buildCartWhatsAppLink(items, shippingZone = null) {
   const lines = items.map(
-    (item) => `- ${item.product.name} x${item.quantity} (${formatCurrency(item.lineTotal)})`,
+    (item) => `- ${item.displayName || item.product.name} x${item.quantity} (${formatCurrency(item.lineTotal)})`,
   )
 
   const subtotalAmount = items.reduce((total, item) => total + item.lineTotal, 0)
@@ -212,6 +212,18 @@ function getVisibleDecantPrices(product, decantSettings) {
       }
     })
     .filter(Boolean)
+}
+
+function buildCartItemKey(productId, variant = null) {
+  if (variant?.kind === 'decant' && variant.sizeId) {
+    return `decant:${productId}:${variant.sizeId}`
+  }
+
+  return `product:${productId}`
+}
+
+function buildDecantDisplayName(productName, sizeLabel) {
+  return `${productName} · ${sizeLabel}`
 }
 
 function StarRating({ rating, reviews, centered = false }) {
@@ -741,13 +753,13 @@ function CheckoutPage({
 
           <div className="checkout-items">
             {items.map((item) => (
-              <article key={item.product._id} className="checkout-item">
+              <article key={item.cartKey} className="checkout-item">
                 <div className="checkout-item__media">
-                  <img src={item.product.imageUrls?.[0] || item.product.imageUrl || fallbackImage} alt={item.product.name} />
+                  <img src={item.product.imageUrls?.[0] || item.product.imageUrl || fallbackImage} alt={item.displayName} />
                 </div>
                 <div className="checkout-item__copy">
-                  <strong>{item.product.name}</strong>
-                  <span>{formatCurrency(item.product.offerPrice)} x {item.quantity}</span>
+                  <strong>{item.displayName}</strong>
+                  <span>{formatCurrency(item.unitPrice)} x {item.quantity}</span>
                 </div>
                 <strong className="checkout-item__total">{formatCurrency(item.lineTotal)}</strong>
               </article>
@@ -885,29 +897,29 @@ function CartSidebar({
           <>
             <div className="cart-sidebar__list">
               {items.map((item) => (
-                <article key={item.product._id} className="cart-sidebar__item">
+                <article key={item.cartKey} className="cart-sidebar__item">
                   <button
                     type="button"
                     className="cart-sidebar__remove"
-                    onClick={() => onRemove(item.product._id)}
-                    aria-label={`Eliminar ${item.product.name} del carrito`}
+                    onClick={() => onRemove(item.cartKey)}
+                    aria-label={`Eliminar ${item.displayName} del carrito`}
                   >
                     ×
                   </button>
 
                   <div className="cart-sidebar__media">
-                    <img src={item.product.imageUrls?.[0] || item.product.imageUrl || fallbackImage} alt={item.product.name} />
+                    <img src={item.product.imageUrls?.[0] || item.product.imageUrl || fallbackImage} alt={item.displayName} />
                   </div>
 
                   <div className="cart-sidebar__copy">
-                    <strong>{item.product.name}</strong>
-                    <span>{formatCurrency(item.product.offerPrice)} x {item.quantity}</span>
+                    <strong>{item.displayName}</strong>
+                    <span>{formatCurrency(item.unitPrice)} x {item.quantity}</span>
                     <div className="cart-quantity cart-quantity--sidebar">
-                      <button type="button" onClick={() => onDecrease(item.product._id)} aria-label={`Reducir cantidad de ${item.product.name}`}>
+                      <button type="button" onClick={() => onDecrease(item.cartKey)} aria-label={`Reducir cantidad de ${item.displayName}`}>
                         -
                       </button>
                       <span>{item.quantity}</span>
-                      <button type="button" onClick={() => onIncrease(item.product._id)} aria-label={`Aumentar cantidad de ${item.product.name}`}>
+                      <button type="button" onClick={() => onIncrease(item.cartKey)} aria-label={`Aumentar cantidad de ${item.displayName}`}>
                         +
                       </button>
                     </div>
@@ -1029,12 +1041,12 @@ function CartPage({ items, subtotalAmount, onBack, onIncrease, onDecrease, onRem
       <div className="cart-layout">
         <div className="cart-list">
           {items.map((item) => (
-            <article key={item.product._id} className="cart-item">
+            <article key={item.cartKey} className="cart-item">
               <button
                 type="button"
                 className="cart-item__remove"
-                onClick={() => onRemove(item.product._id)}
-                aria-label={`Eliminar ${item.product.name} del carrito`}
+                onClick={() => onRemove(item.cartKey)}
+                aria-label={`Eliminar ${item.displayName} del carrito`}
               >
                 ×
               </button>
@@ -1043,27 +1055,27 @@ function CartPage({ items, subtotalAmount, onBack, onIncrease, onDecrease, onRem
                 type="button"
                 className="cart-item__media"
                 onClick={onBack}
-                aria-label={`Volver y seguir comprando ${item.product.name}`}
+                aria-label={`Volver y seguir comprando ${item.displayName}`}
               >
-                <img src={item.product.imageUrl || fallbackImage} alt={item.product.name} />
+                <img src={item.product.imageUrl || fallbackImage} alt={item.displayName} />
               </button>
 
               <div className="cart-item__copy">
                 <span>{item.product.category?.name || 'Selección Saval'}</span>
-                <strong>{item.product.name}</strong>
+                <strong>{item.displayName}</strong>
               </div>
 
               <div className="cart-item__price">
-                <span>{formatCurrency(item.product.basePrice)}</span>
-                <strong>{formatCurrency(item.product.offerPrice)}</strong>
+                <span>{item.isDecantVariant ? formatCurrency(item.unitPrice) : formatCurrency(item.product.basePrice)}</span>
+                <strong>{formatCurrency(item.unitPrice)}</strong>
               </div>
 
               <div className="cart-quantity">
-                <button type="button" onClick={() => onDecrease(item.product._id)} aria-label={`Reducir cantidad de ${item.product.name}`}>
+                <button type="button" onClick={() => onDecrease(item.cartKey)} aria-label={`Reducir cantidad de ${item.displayName}`}>
                   -
                 </button>
                 <span>{item.quantity}</span>
-                <button type="button" onClick={() => onIncrease(item.product._id)} aria-label={`Aumentar cantidad de ${item.product.name}`}>
+                <button type="button" onClick={() => onIncrease(item.cartKey)} aria-label={`Aumentar cantidad de ${item.displayName}`}>
                   +
                 </button>
               </div>
@@ -1300,7 +1312,7 @@ function App() {
   }, [activeCategory, payload.decantSettings, payload.products])
 
   const cartCount = useMemo(
-    () => Object.values(cartItems).reduce((total, quantity) => total + quantity, 0),
+    () => Object.values(cartItems).reduce((total, item) => total + Number(item?.quantity || 0), 0),
     [cartItems],
   )
 
@@ -1312,21 +1324,29 @@ function App() {
   const cartProducts = useMemo(
     () =>
       Object.entries(cartItems)
-        .map(([productId, quantity]) => {
-          const product = payload.products.find((item) => item._id === productId)
+        .map(([cartKey, entry]) => {
+          const product = payload.products.find((item) => item._id === entry.productId)
 
-          if (!product || quantity <= 0) {
+          if (!product || entry.quantity <= 0) {
             return null
           }
 
-          const unitPrice = Number(product.offerPrice || 0)
-          const baseUnitPrice = Number(product.basePrice || product.offerPrice || 0)
+          const isDecantVariant = entry.variant?.kind === 'decant'
+          const unitPrice = Number(isDecantVariant ? entry.variant.unitPrice : product.offerPrice || 0)
+          const baseUnitPrice = Number(isDecantVariant ? entry.variant.unitPrice : product.basePrice || product.offerPrice || 0)
 
           return {
+            cartKey,
             product,
-            quantity,
-            baseLineTotal: baseUnitPrice * quantity,
-            lineTotal: unitPrice * quantity,
+            quantity: entry.quantity,
+            displayName: isDecantVariant
+              ? buildDecantDisplayName(product.name, entry.variant.sizeLabel)
+              : product.name,
+            isDecantVariant,
+            sizeLabel: entry.variant?.sizeLabel || '',
+            unitPrice,
+            baseLineTotal: baseUnitPrice * entry.quantity,
+            lineTotal: unitPrice * entry.quantity,
           }
         })
         .filter(Boolean),
@@ -1397,23 +1417,29 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  function handleAddToCart(productId, quantity = 1) {
+  function handleAddToCart(productId, quantity = 1, variant = null) {
+    const cartKey = buildCartItemKey(productId, variant)
+
     setCartItems((current) => ({
       ...current,
-      [productId]: (current[productId] || 0) + quantity,
+      [cartKey]: {
+        productId,
+        quantity: Number(current[cartKey]?.quantity || 0) + quantity,
+        variant: variant ? { ...variant } : null,
+      },
     }))
   }
 
-  function handleAddToCartWithConfirmation(product, quantity = 1) {
-    handleAddToCart(product._id, quantity)
-    setConfirmationProductName(product.name)
+  function handleAddToCartWithConfirmation(product, quantity = 1, variant = null) {
+    handleAddToCart(product._id, quantity, variant)
+    setConfirmationProductName(variant?.sizeLabel ? buildDecantDisplayName(product.name, variant.sizeLabel) : product.name)
     showConfirmation()
   }
 
-  function handleDecantQuantityChange(productId, nextQuantity) {
+  function handleDecantQuantityChange(quantityKey, nextQuantity) {
     setDecantQuantities((current) => ({
       ...current,
-      [productId]: Math.max(1, nextQuantity),
+      [quantityKey]: Math.max(1, nextQuantity),
     }))
   }
 
@@ -1567,29 +1593,52 @@ function App() {
     setQuickViewProduct(null)
   }
 
-  function handleIncreaseCartItem(productId) {
-    handleAddToCart(productId, 1)
+  function handleIncreaseCartItem(cartKey) {
+    setCartItems((current) => {
+      const existingItem = current[cartKey]
+
+      if (!existingItem) {
+        return current
+      }
+
+      return {
+        ...current,
+        [cartKey]: {
+          ...existingItem,
+          quantity: existingItem.quantity + 1,
+        },
+      }
+    })
   }
 
-  function handleDecreaseCartItem(productId) {
+  function handleDecreaseCartItem(cartKey) {
     setCartItems((current) => {
-      const nextQuantity = (current[productId] || 0) - 1
+      const existingItem = current[cartKey]
+
+      if (!existingItem) {
+        return current
+      }
+
+      const nextQuantity = existingItem.quantity - 1
 
       if (nextQuantity <= 0) {
-        const { [productId]: _removed, ...rest } = current
+        const { [cartKey]: _removed, ...rest } = current
         return rest
       }
 
       return {
         ...current,
-        [productId]: nextQuantity,
+        [cartKey]: {
+          ...existingItem,
+          quantity: nextQuantity,
+        },
       }
     })
   }
 
-  function handleRemoveCartItem(productId) {
+  function handleRemoveCartItem(cartKey) {
     setCartItems((current) => {
-      const { [productId]: _removed, ...rest } = current
+      const { [cartKey]: _removed, ...rest } = current
       return rest
     })
   }
@@ -1639,9 +1688,10 @@ function App() {
         paymentMethod: purchaseForm.paymentMethod,
         items: cartProducts.map((item) => ({
           productId: item.product._id,
-          name: item.product.name,
+          name: item.displayName,
+          variantLabel: item.sizeLabel || undefined,
           quantity: item.quantity,
-          unitPrice: Number(item.product.offerPrice || 0),
+          unitPrice: Number(item.unitPrice || 0),
           lineTotal: item.lineTotal,
         })),
         shippingZone: {
@@ -1855,7 +1905,6 @@ function App() {
                     const ratingData = getProductRatingData(product)
                     const visibleDecantPrices = getVisibleDecantPrices(product, payload.decantSettings)
                     const isDecantView = activeCategory === 'decants'
-                    const decantQuantity = Math.max(1, decantQuantities[product._id] || 1)
 
                     return (
                       <article
@@ -1880,38 +1929,50 @@ function App() {
                           {isDecantView ? (
                             <>
                               <div className="decant-price-stack">
-                                {visibleDecantPrices.map((decantPrice) => (
-                                  <div key={decantPrice.sizeId} className="decant-price-stack__item">
-                                    <span>{decantPrice.label}</span>
-                                    <strong>{formatCurrency(decantPrice.price)}</strong>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="decant-card-actions">
-                                <div className="decant-quantity" aria-label={`Cantidad de ${product.name}`}>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDecantQuantityChange(product._id, decantQuantity - 1)}
-                                    aria-label={`Reducir cantidad de ${product.name}`}
-                                  >
-                                    -
-                                  </button>
-                                  <span>{decantQuantity}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDecantQuantityChange(product._id, decantQuantity + 1)}
-                                    aria-label={`Aumentar cantidad de ${product.name}`}
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="button-primary decant-card-actions__button"
-                                  onClick={() => handleAddToCartWithConfirmation(product, decantQuantity)}
-                                >
-                                  Agregar al carrito
-                                </button>
+                                {visibleDecantPrices.map((decantPrice) => {
+                                  const quantityKey = buildCartItemKey(product._id, { kind: 'decant', sizeId: decantPrice.sizeId })
+                                  const decantQuantity = Math.max(1, decantQuantities[quantityKey] || 1)
+
+                                  return (
+                                    <div key={decantPrice.sizeId} className="decant-price-stack__item">
+                                      <div className="decant-price-stack__summary">
+                                        <span>{decantPrice.label}</span>
+                                        <strong>{formatCurrency(decantPrice.price)}</strong>
+                                      </div>
+                                      <div className="decant-card-actions">
+                                        <div className="decant-quantity" aria-label={`Cantidad de ${product.name} ${decantPrice.label}`}>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDecantQuantityChange(quantityKey, decantQuantity - 1)}
+                                            aria-label={`Reducir cantidad de ${product.name} ${decantPrice.label}`}
+                                          >
+                                            -
+                                          </button>
+                                          <span>{decantQuantity}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDecantQuantityChange(quantityKey, decantQuantity + 1)}
+                                            aria-label={`Aumentar cantidad de ${product.name} ${decantPrice.label}`}
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className="button-primary decant-card-actions__button"
+                                          onClick={() => handleAddToCartWithConfirmation(product, decantQuantity, {
+                                            kind: 'decant',
+                                            sizeId: decantPrice.sizeId,
+                                            sizeLabel: decantPrice.label,
+                                            unitPrice: decantPrice.price,
+                                          })}
+                                        >
+                                          Agregar al carrito
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
                               </div>
                             </>
                           ) : (
