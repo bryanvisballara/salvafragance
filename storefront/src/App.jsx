@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:10000/api'
+const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+const apiBaseUrl = import.meta.env.VITE_API_URL || (isLocalHost ? 'http://localhost:10000/api' : 'https://salvafragance.onrender.com/api')
 const paymentGatewayUrl = import.meta.env.VITE_PAYMENT_GATEWAY_URL || ''
 const brandLogoUrl = `${import.meta.env.BASE_URL}saval-logo.jpeg`
 const whatsappPhoneNumber = '573001767364'
