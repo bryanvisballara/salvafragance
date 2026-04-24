@@ -1,3 +1,11 @@
+function formatCurrency(value) {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0))
+}
+
 function shellTemplate({ title, heading, intro, accent, body }) {
   return `
     <div style="margin:0;background:#0b0b0d;padding:32px 16px;font-family:Arial,sans-serif;color:#f6efe5;">
@@ -21,6 +29,40 @@ function shellTemplate({ title, heading, intro, accent, body }) {
   `
 }
 
+function buildOrderItemsMarkup(items) {
+  return (items || [])
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding:12px 0;color:#efe7da;vertical-align:top;">
+            <strong>${escapeHtml(item.name)}</strong>${item.variantLabel ? `<br /><span style="color:#c8b89b;font-size:13px;">${escapeHtml(item.variantLabel)}</span>` : ''}<br />
+            <span style="color:#c8b89b;font-size:13px;">${item.quantity} x ${escapeHtml(formatCurrency(item.unitPrice))}</span>
+          </td>
+          <td style="padding:12px 0;color:#fff7ea;text-align:right;vertical-align:top;font-weight:700;">${escapeHtml(formatCurrency(item.lineTotal))}</td>
+        </tr>
+      `,
+    )
+    .join('')
+}
+
+function buildOrderSummaryCard({ items, totalAmount, shippingPlace, shippingPrice, extraLine }) {
+  return `
+    <div style="display:grid;gap:18px;">
+      <div style="padding:18px;border-radius:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(233,198,128,0.14);">
+        <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#d9bc84;margin-bottom:8px;">Detalle del pedido</div>
+        <table style="width:100%;border-collapse:collapse;">
+          <tbody>${buildOrderItemsMarkup(items)}</tbody>
+        </table>
+      </div>
+      <div style="display:grid;gap:8px;">
+        ${shippingPlace ? `<p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Destino:</strong> ${escapeHtml(shippingPlace)}${shippingPrice ? ` (${escapeHtml(formatCurrency(shippingPrice))})` : ''}</p>` : ''}
+        ${extraLine || ''}
+        <p style="margin:0;color:#fff7ea;line-height:1.7;font-size:18px;"><strong>Total:</strong> ${escapeHtml(formatCurrency(totalAmount))}</p>
+      </div>
+    </div>
+  `
+}
+
 function escapeHtml(value) {
   return String(value || '')
     .replaceAll('&', '&amp;')
@@ -30,24 +72,25 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;')
 }
 
-export function buildOrderPlacedEmail({ customerName, productName }) {
+export function buildOrderPlacedEmail({ customerName, orderReference, items, totalAmount, shippingPlace }) {
   return shellTemplate({
     title: 'Tu pedido está siendo preparado',
     heading: `Gracias por elegir Saval Fragance, ${customerName}`,
-    intro: 'Recibimos tu compra correctamente y nuestro equipo ya está preparando tu fragancia con el mayor cuidado.',
+    intro: 'Tu orden fue confirmada correctamente y nuestro equipo ya la está preparando con el cuidado y detalle que merece.',
     accent: 'linear-gradient(135deg,#f3d393,#bf8b32)',
     body: `
-      <p style="margin:0 0 14px;color:#efe7da;line-height:1.7;">Tu pedido para <strong>${productName}</strong> ha sido registrado. Muy pronto recibirás un nuevo correo con el número de guía para hacer seguimiento a tu envío.</p>
-      <p style="margin:0;color:#c8b89b;line-height:1.7;">Gracias por confiar en una selección pensada para hacerte sentir distinto desde el primer acorde.</p>
+      <p style="margin:0 0 14px;color:#efe7da;line-height:1.7;">${orderReference ? `La orden <strong>${escapeHtml(orderReference)}</strong> fue registrada correctamente.` : 'Tu compra fue registrada correctamente.'} Muy pronto recibirás un nuevo correo con la guía de seguimiento.</p>
+      ${buildOrderSummaryCard({ items, totalAmount, shippingPlace })}
+      <p style="margin:14px 0 0;color:#c8b89b;line-height:1.7;">Gracias por confiar en una selección pensada para hacerte sentir distinto desde el primer acorde.</p>
     `,
   })
 }
 
-export function buildTrackingEmail({ customerName, productName, shippingCarrier, trackingNumber }) {
+export function buildTrackingEmail({ customerName, orderReference, items, totalAmount, shippingPlace, shippingCarrier, trackingNumber }) {
   return shellTemplate({
     title: `Guía ${trackingNumber}`,
     heading: 'Tu pedido ya va en camino',
-    intro: `Hola ${customerName}, tu pedido de ${productName} ya fue despachado y aquí tienes los datos de seguimiento.`,
+    intro: `Hola ${customerName}, ${orderReference ? `tu orden ${escapeHtml(orderReference)}` : 'tu pedido'} ya fue despachado y aquí tienes los datos de seguimiento.`,
     accent: 'linear-gradient(135deg,#d7efff,#7db8ff)',
     body: `
       <div style="display:grid;gap:14px;">
@@ -59,6 +102,12 @@ export function buildTrackingEmail({ customerName, productName, shippingCarrier,
           <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#d9bc84;">Número de seguimiento</div>
           <div style="margin-top:6px;font-size:24px;color:#fff7ea;font-weight:700;">${trackingNumber}</div>
         </div>
+        ${buildOrderSummaryCard({
+          items,
+          totalAmount,
+          shippingPlace,
+          extraLine: `<p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Transportadora:</strong> ${escapeHtml(shippingCarrier)} · <strong>Guía:</strong> ${escapeHtml(trackingNumber)}</p>`,
+        })}
       </div>
     `,
   })

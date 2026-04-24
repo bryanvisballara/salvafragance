@@ -8,6 +8,7 @@ import Category from '../models/Category.js'
 import Customer from '../models/Customer.js'
 import DecantSettings from '../models/DecantSettings.js'
 import Order from '../models/Order.js'
+import PreOrder from '../models/PreOrder.js'
 import Product from '../models/Product.js'
 import ShippingZone from '../models/ShippingZone.js'
 
@@ -19,6 +20,19 @@ function formatCurrency(value) {
     currency: 'COP',
     maximumFractionDigits: 0,
   }).format(Number(value || 0))
+}
+
+function normalizeOrderItems(items) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      product: item.productId || null,
+      name: item.name?.trim() || '',
+      variantLabel: item.variantLabel?.trim() || '',
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unitPrice || 0),
+      lineTotal: Number(item.lineTotal || 0),
+    }))
+    .filter((item) => item.name && item.quantity > 0)
 }
 
 router.post(
@@ -132,7 +146,7 @@ router.get(
       categories,
       products,
       shippingZones,
-      decantSettings: decantSettings || { key: 'default', sizes: [] },
+      decantSettings: decantSettings || { key: 'default', sortOrder: categories.length, sizes: [] },
     })
   }),
 )
@@ -146,17 +160,19 @@ router.post(
     const shippingZone = request.body.shippingZone || null
     const coupon = request.body.coupon || null
     const paymentMethod = request.body.paymentMethod?.trim() || ''
+    const phoneCountryCode = customer.phoneCountryCode?.trim() || '+57'
     const baseSubtotalAmount = Number(request.body.baseSubtotalAmount || 0)
     const discountAmount = Number(request.body.discountAmount || 0)
     const surchargeAmount = Number(request.body.surchargeAmount || 0)
     const totalAmount = Number(request.body.totalAmount || 0)
     const adminEmail = process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL
+    const normalizedItems = normalizeOrderItems(items)
 
     if (!reference || !customer.firstName?.trim() || !customer.lastName?.trim() || !customer.email?.trim() || !customer.phone?.trim()) {
       throw createHttpError(400, 'Order notification data is incomplete')
     }
 
-    if (!items.length || !shippingZone?.place) {
+    if (!normalizedItems.length || !shippingZone?.place) {
       throw createHttpError(400, 'Order notification items and shipping are required')
     }
 
@@ -184,6 +200,7 @@ router.post(
           firstName: customer.firstName.trim(),
           lastName: customer.lastName.trim(),
           phone: customer.phone.trim(),
+          phoneCountryCode,
           email: customerEmail,
           city: customer.city?.trim() || shippingZone.place.trim(),
           address: customerAddress,
@@ -197,6 +214,33 @@ router.post(
         setDefaultsOnInsert: true,
       },
     )
+
+    if (paymentMethod === 'cash_on_delivery') {
+      await PreOrder.findOneAndUpdate(
+        { reference },
+        {
+          $set: {
+            customer: storedCustomer._id,
+            items: normalizedItems,
+            couponName: coupon?.name?.trim() || '',
+            discountAmount,
+            subtotalAmount: Number(request.body.subtotalAmount || 0),
+            surchargeAmount,
+            totalAmount,
+            paymentMethod,
+            shippingPlace: shippingZone.place.trim(),
+            shippingPrice: Number(shippingZone.price || 0),
+            shippingEta: shippingZone.eta?.trim() || '',
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          runValidators: true,
+          setDefaultsOnInsert: true,
+        },
+      )
+    }
 
     if (!adminEmail) {
       response.json({
@@ -219,7 +263,7 @@ router.post(
         htmlContent: buildAdminOrderNotificationEmail({
           reference,
           customer,
-          items: items.map((item) => ({
+          items: normalizedItems.map((item) => ({
             ...item,
             unitPriceLabel: formatCurrency(item.unitPrice),
             lineTotalLabel: formatCurrency(item.lineTotal),
@@ -265,6 +309,7 @@ router.post(
     const firstName = request.body.firstName?.trim()
     const lastName = request.body.lastName?.trim()
     const phone = request.body.phone?.trim()
+    const phoneCountryCode = request.body.phoneCountryCode?.trim() || '+57'
     const email = request.body.email?.trim().toLowerCase()
     const city = request.body.city?.trim()
     const address = request.body.address?.trim()
@@ -289,6 +334,7 @@ router.post(
       firstName,
       lastName,
       phone,
+      phoneCountryCode,
       email,
       city,
       address,
@@ -298,7 +344,18 @@ router.post(
 
     const order = await Order.create({
       customer: customer.id,
+      reference: request.body.reference?.trim() || `SAVAL-${Date.now()}`,
       product: productId,
+      items: [
+        {
+          product: productId,
+          name: product.name,
+          variantLabel: '',
+          quantity: 1,
+          unitPrice: Number(product.offerPrice || 0),
+          lineTotal: pricing.totalAmount,
+        },
+      ],
       coupon: coupon?._id || null,
       couponName: coupon?.name || '',
       discountType: coupon?.discountType || '',
@@ -306,6 +363,8 @@ router.post(
       subtotalAmount: pricing.subtotalAmount,
       discountAmount: pricing.discountAmount,
       totalAmount: pricing.totalAmount,
+      paymentMethod: request.body.paymentMethod?.trim() || 'online',
+      shippingPlace: city,
     })
 
     try {
@@ -317,7 +376,10 @@ router.post(
         subject: `Tu pedido en Saval Fragance está siendo preparado`,
         htmlContent: buildOrderPlacedEmail({
           customerName: firstName,
-          productName: product.name,
+          orderReference: order.reference,
+          items: order.items,
+          totalAmount: order.totalAmount,
+          shippingPlace: order.shippingPlace,
         }),
       })
     } catch (error) {

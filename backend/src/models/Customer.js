@@ -17,6 +17,11 @@ const customerSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    phoneCountryCode: {
+      type: String,
+      default: '+57',
+      trim: true,
+    },
     email: {
       type: String,
       required: true,

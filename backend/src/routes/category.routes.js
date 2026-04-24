@@ -40,7 +40,40 @@ router.post(
 router.put(
   '/reorder',
   asyncHandler(async (request, response) => {
+    const categoryOrders = Array.isArray(request.body?.categoryOrders) ? request.body.categoryOrders : []
     const categoryIds = Array.isArray(request.body?.categoryIds) ? request.body.categoryIds : []
+
+    if (categoryOrders.length) {
+      const normalizedOrders = categoryOrders.map((entry, index) => {
+        const categoryId = entry?.id
+        const sortOrder = Number(entry?.sortOrder)
+
+        if (!categoryId || !Number.isInteger(sortOrder) || sortOrder < 0) {
+          throw createHttpError(400, `La posición de la categoría #${index + 1} es inválida`)
+        }
+
+        return { id: categoryId, sortOrder }
+      })
+
+      const categories = await Category.find({ _id: { $in: normalizedOrders.map((entry) => entry.id) } }).select('_id').lean()
+
+      if (categories.length !== normalizedOrders.length) {
+        throw createHttpError(404, 'One or more categories were not found')
+      }
+
+      await Category.bulkWrite(
+        normalizedOrders.map((entry) => ({
+          updateOne: {
+            filter: { _id: entry.id },
+            update: { $set: { sortOrder: entry.sortOrder } },
+          },
+        })),
+      )
+
+      const reorderedCategories = await Category.find().sort({ sortOrder: 1, createdAt: 1 }).lean()
+      response.json(reorderedCategories)
+      return
+    }
 
     if (!categoryIds.length) {
       throw createHttpError(400, 'Category order is required')

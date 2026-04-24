@@ -10,6 +10,7 @@ import shippingRouter from './routes/shipping.routes.js'
 import publicRouter from './routes/public.routes.js'
 import customerRouter from './routes/customer.routes.js'
 import orderRouter from './routes/order.routes.js'
+import preorderRouter from './routes/preorder.routes.js'
 import couponRouter from './routes/coupon.routes.js'
 import decantRouter from './routes/decant.routes.js'
 import marketingRouter from './routes/marketing.routes.js'
@@ -52,6 +53,7 @@ app.use('/api/products', productRouter)
 app.use('/api/shipping-zones', shippingRouter)
 app.use('/api/customers', customerRouter)
 app.use('/api/orders', orderRouter)
+app.use('/api/preorders', preorderRouter)
 app.use('/api/coupons', couponRouter)
 app.use('/api/decants', decantRouter)
 app.use('/api/marketing', marketingRouter)

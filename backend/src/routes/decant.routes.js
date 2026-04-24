@@ -27,6 +27,20 @@ function normalizeSizes(rawSizes) {
   })
 }
 
+function normalizeSortOrder(rawSortOrder, fallbackSortOrder) {
+  if (rawSortOrder === undefined || rawSortOrder === null || rawSortOrder === '') {
+    return fallbackSortOrder
+  }
+
+  const sortOrder = Number(rawSortOrder)
+
+  if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+    throw createHttpError(400, 'El orden de Decants debe ser un número entero mayor o igual a 0.')
+  }
+
+  return sortOrder
+}
+
 async function getOrCreateSettings() {
   let settings = await DecantSettings.findOne({ key: 'default' })
 
@@ -49,6 +63,8 @@ router.put(
   '/',
   asyncHandler(async (request, response) => {
     const sizes = normalizeSizes(request.body?.sizes)
+    const settings = await getOrCreateSettings()
+    const sortOrder = normalizeSortOrder(request.body?.sortOrder, settings.sortOrder)
     const uniqueKeys = new Set()
 
     sizes.forEach((size) => {
@@ -61,8 +77,8 @@ router.put(
       uniqueKeys.add(key)
     })
 
-    const settings = await getOrCreateSettings()
     settings.sizes = sizes
+    settings.sortOrder = sortOrder
     await settings.save()
 
     response.json(settings.toObject())

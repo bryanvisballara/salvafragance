@@ -16,6 +16,7 @@ router.get(
     const orders = await Order.find()
       .populate('customer')
       .populate('product', 'name')
+      .populate('items.product', 'name')
       .populate('coupon', 'name discountType discountValue')
       .sort({ createdAt: -1 })
       .lean()
@@ -34,7 +35,10 @@ router.put(
       throw createHttpError(400, 'Shipping carrier and tracking number are required')
     }
 
-    const order = await Order.findById(request.params.id).populate('customer').populate('product', 'name')
+    const order = await Order.findById(request.params.id)
+      .populate('customer')
+      .populate('product', 'name')
+      .populate('items.product', 'name')
 
     if (!order) {
       throw createHttpError(404, 'Order not found')
@@ -55,7 +59,20 @@ router.put(
         subject: `Tu guía de envío para ${order.product.name}`,
         htmlContent: buildTrackingEmail({
           customerName: order.customer.firstName,
-          productName: order.product.name,
+          orderReference: order.reference,
+          items: order.items?.length
+            ? order.items
+            : [
+                {
+                  name: order.product?.name || 'Pedido Saval Fragance',
+                  variantLabel: '',
+                  quantity: 1,
+                  unitPrice: order.totalAmount,
+                  lineTotal: order.totalAmount,
+                },
+              ],
+          totalAmount: order.totalAmount,
+          shippingPlace: order.shippingPlace,
           shippingCarrier,
           trackingNumber,
         }),
@@ -68,6 +85,7 @@ router.put(
       await Order.findById(order.id)
         .populate('customer')
         .populate('product', 'name')
+        .populate('items.product', 'name')
         .populate('coupon', 'name discountType discountValue')
         .lean(),
     )

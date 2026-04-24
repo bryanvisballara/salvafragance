@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 
-const orderItemSchema = new mongoose.Schema(
+const preOrderItemSchema = new mongoose.Schema(
   {
     product: {
       type: mongoose.Schema.Types.ObjectId,
@@ -36,11 +36,12 @@ const orderItemSchema = new mongoose.Schema(
   { _id: true },
 )
 
-const orderSchema = new mongoose.Schema(
+const preOrderSchema = new mongoose.Schema(
   {
     reference: {
       type: String,
-      default: '',
+      required: true,
+      unique: true,
       trim: true,
     },
     customer: {
@@ -48,31 +49,20 @@ const orderSchema = new mongoose.Schema(
       ref: 'Customer',
       required: true,
     },
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      default: null,
-    },
     items: {
-      type: [orderItemSchema],
+      type: [preOrderItemSchema],
       default: [],
-    },
-    coupon: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Coupon',
-      default: null,
+      validate: {
+        validator: (items) => Array.isArray(items) && items.length > 0,
+        message: 'Preorder items are required',
+      },
     },
     couponName: {
       type: String,
       default: '',
       trim: true,
     },
-    discountType: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    discountValue: {
+    discountAmount: {
       type: Number,
       default: 0,
       min: 0,
@@ -82,7 +72,7 @@ const orderSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    discountAmount: {
+    surchargeAmount: {
       type: Number,
       default: 0,
       min: 0,
@@ -94,7 +84,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      default: '',
+      default: 'cash_on_delivery',
       trim: true,
     },
     shippingPlace: {
@@ -112,27 +102,8 @@ const orderSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
-    status: {
-      type: String,
-      default: 'preparing',
-      enum: ['preparing', 'shipped'],
-    },
-    shippingCarrier: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    trackingNumber: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    trackingSentAt: {
-      type: Date,
-      default: null,
-    },
   },
   { timestamps: true },
 )
 
-export default mongoose.model('Order', orderSchema)
+export default mongoose.model('PreOrder', preOrderSchema)

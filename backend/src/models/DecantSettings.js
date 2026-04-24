@@ -24,6 +24,11 @@ const decantSettingsSchema = new mongoose.Schema(
       unique: true,
       default: 'default',
     },
+    sortOrder: {
+      type: Number,
+      default: 999,
+      min: 0,
+    },
     sizes: {
       type: [decantSizeSchema],
       default: [],
