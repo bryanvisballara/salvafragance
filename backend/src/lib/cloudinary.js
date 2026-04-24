@@ -2,6 +2,14 @@ import { v2 as cloudinary } from 'cloudinary'
 
 let configured = false
 
+function getCloudinaryCredentials() {
+  return {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME?.trim() || '',
+    apiKey: process.env.CLOUDINARY_API_KEY?.trim() || '',
+    apiSecret: process.env.CLOUDINARY_API_SECRET?.trim() || '',
+  }
+}
+
 function getPublicIdFromCloudinaryUrl(imageUrl) {
   const parsedUrl = new URL(imageUrl)
   const uploadSegment = '/upload/'
@@ -33,10 +41,12 @@ function ensureCloudinary() {
     return
   }
 
+  const credentials = getCloudinaryCredentials()
+
   cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+    cloud_name: credentials.cloudName,
+    api_key: credentials.apiKey,
+    api_secret: credentials.apiSecret,
   })
   configured = true
 }
@@ -52,7 +62,9 @@ function normalizePublicId(fileName) {
 export async function uploadImageBuffer(fileBuffer, fileName) {
   ensureCloudinary()
 
-  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  const credentials = getCloudinaryCredentials()
+
+  if (!credentials.cloudName || !credentials.apiKey || !credentials.apiSecret) {
     throw new Error('Cloudinary credentials are missing')
   }
 
@@ -84,7 +96,9 @@ export async function uploadImageBuffer(fileBuffer, fileName) {
 export async function deleteImageByUrl(imageUrl) {
   ensureCloudinary()
 
-  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  const credentials = getCloudinaryCredentials()
+
+  if (!credentials.cloudName || !credentials.apiKey || !credentials.apiSecret) {
     throw new Error('Cloudinary credentials are missing')
   }
 

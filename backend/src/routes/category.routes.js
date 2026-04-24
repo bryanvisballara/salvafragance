@@ -12,7 +12,7 @@ router.use(requireAuth)
 router.get(
   '/',
   asyncHandler(async (_request, response) => {
-    const categories = await Category.find().sort({ createdAt: -1 }).lean()
+    const categories = await Category.find().sort({ sortOrder: 1, createdAt: 1 }).lean()
     response.json(categories)
   }),
 )
@@ -29,8 +29,40 @@ router.post(
       throw createHttpError(400, 'Category name is required')
     }
 
-    const category = await Category.create({ name, description })
+    const lastCategory = await Category.findOne().sort({ sortOrder: -1, createdAt: -1 }).select('sortOrder').lean()
+    const nextSortOrder = Number(lastCategory?.sortOrder ?? -1) + 1
+
+    const category = await Category.create({ name, description, sortOrder: nextSortOrder })
     response.status(201).json(category)
+  }),
+)
+
+router.put(
+  '/reorder',
+  asyncHandler(async (request, response) => {
+    const categoryIds = Array.isArray(request.body?.categoryIds) ? request.body.categoryIds : []
+
+    if (!categoryIds.length) {
+      throw createHttpError(400, 'Category order is required')
+    }
+
+    const categories = await Category.find({ _id: { $in: categoryIds } }).select('_id').lean()
+
+    if (categories.length !== categoryIds.length) {
+      throw createHttpError(404, 'One or more categories were not found')
+    }
+
+    await Category.bulkWrite(
+      categoryIds.map((categoryId, index) => ({
+        updateOne: {
+          filter: { _id: categoryId },
+          update: { $set: { sortOrder: index } },
+        },
+      })),
+    )
+
+    const reorderedCategories = await Category.find().sort({ sortOrder: 1, createdAt: 1 }).lean()
+    response.json(reorderedCategories)
   }),
 )
 

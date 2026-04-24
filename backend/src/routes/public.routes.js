@@ -121,7 +121,7 @@ router.get(
   '/',
   asyncHandler(async (_request, response) => {
     const [categories, products, shippingZones] = await Promise.all([
-      Category.find({ isActive: true }).sort({ name: 1 }).lean(),
+      Category.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 }).lean(),
       Product.find({ isPublished: true }).populate('category', 'name').sort({ createdAt: -1 }).lean(),
       ShippingZone.find({ isActive: true }).sort({ place: 1 }).lean(),
     ])
