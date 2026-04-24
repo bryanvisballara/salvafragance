@@ -18,14 +18,24 @@ import { seedAdminUser } from './services/seed-admin.js'
 const app = express()
 const port = Number(process.env.PORT || 10000)
 
-const allowedOrigins = (process.env.CLIENT_URL || '')
+const defaultAllowedOrigins = [
+  'https://savalfragance.com',
+  'https://www.savalfragance.com',
+  'https://salvafragance.onrender.com',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]
+
+const allowedOrigins = [...defaultAllowedOrigins, ...(process.env.CLIENT_URL || '')
   .split(',')
   .map((origin) => origin.trim())
-  .filter(Boolean)
+  .filter(Boolean)]
+
+const normalizedAllowedOrigins = [...new Set(allowedOrigins)]
 
 app.use(
   cors({
-    origin: allowedOrigins.length ? allowedOrigins : true,
+    origin: normalizedAllowedOrigins.length ? normalizedAllowedOrigins : true,
     credentials: true,
   }),
 )
