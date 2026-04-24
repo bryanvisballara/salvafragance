@@ -123,6 +123,25 @@ function getStartOfWeek(date) {
   return result
 }
 
+function reorderCategoryList(categories, draggedCategoryId, targetCategoryId) {
+  if (!draggedCategoryId || !targetCategoryId || draggedCategoryId === targetCategoryId) {
+    return categories
+  }
+
+  const nextCategories = [...categories]
+  const draggedIndex = nextCategories.findIndex((category) => category._id === draggedCategoryId)
+  const targetIndex = nextCategories.findIndex((category) => category._id === targetCategoryId)
+
+  if (draggedIndex === -1 || targetIndex === -1) {
+    return categories
+  }
+
+  const [draggedCategory] = nextCategories.splice(draggedIndex, 1)
+  nextCategories.splice(targetIndex, 0, draggedCategory)
+
+  return nextCategories
+}
+
 function SuccessIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -182,6 +201,9 @@ function App() {
   const [productFiles, setProductFiles] = useState([])
   const [isUploadingImages, setIsUploadingImages] = useState(false)
   const [deletingImageUrl, setDeletingImageUrl] = useState('')
+  const [draggedCategoryId, setDraggedCategoryId] = useState('')
+  const [categoryDropTargetId, setCategoryDropTargetId] = useState('')
+  const [isSavingCategoryOrder, setIsSavingCategoryOrder] = useState(false)
   const [isSendingMarketingEmail, setIsSendingMarketingEmail] = useState(false)
   const [expandedProductDescriptions, setExpandedProductDescriptions] = useState({})
 
@@ -678,7 +700,7 @@ function App() {
           ? current.map((category) =>
               category._id === savedCategory._id ? savedCategory : category,
             )
-          : [savedCategory, ...current],
+          : [...current, savedCategory],
       )
       setCategoryForm(emptyCategoryForm)
       setProductForm((current) => ({
@@ -689,6 +711,65 @@ function App() {
       showSuccess(isEdit ? 'Categoría actualizada correctamente.' : 'Categoría creada correctamente.')
     } catch (error) {
       setDashboardMessage(error.message)
+    }
+  }
+
+  function handleCategoryDragStart(categoryId, event) {
+    setDraggedCategoryId(categoryId)
+    setCategoryDropTargetId(categoryId)
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', categoryId)
+    }
+  }
+
+  function handleCategoryDragEnter(categoryId) {
+    if (!draggedCategoryId || draggedCategoryId === categoryId) {
+      return
+    }
+
+    setCategoryDropTargetId(categoryId)
+  }
+
+  function resetCategoryDragState() {
+    setDraggedCategoryId('')
+    setCategoryDropTargetId('')
+  }
+
+  async function handleCategoryDrop(targetCategoryId) {
+    if (!draggedCategoryId) {
+      return
+    }
+
+    const previousCategories = categories
+    const nextCategories = reorderCategoryList(categories, draggedCategoryId, targetCategoryId)
+
+    resetCategoryDragState()
+
+    if (nextCategories === categories) {
+      return
+    }
+
+    setCategories(nextCategories)
+    setIsSavingCategoryOrder(true)
+
+    try {
+      const reorderedCategories = await apiRequest('/categories/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({
+          categoryIds: nextCategories.map((category) => category._id),
+        }),
+      })
+
+      setCategories(reorderedCategories)
+      setDashboardMessage('')
+      showSuccess('Orden de categorías actualizado correctamente.')
+    } catch (error) {
+      setCategories(previousCategories)
+      setDashboardMessage(error.message)
+    } finally {
+      setIsSavingCategoryOrder(false)
     }
   }
 
@@ -1171,7 +1252,7 @@ function App() {
                         aria-label={`Borrar ${file.fileName}`}
                         onClick={() => handleRemovePendingProductFile(index)}
                       >
-                        x
+                          ×
                       </button>
                       <img src={file.previewUrl} alt={file.fileName} className="uploaded-preview" />
                     </div>
@@ -1199,7 +1280,7 @@ function App() {
                       onClick={() => handleRemoveUploadedProductImage(imageUrl)}
                       disabled={deletingImageUrl === imageUrl}
                     >
-                      {deletingImageUrl === imageUrl ? '...' : 'x'}
+                      {deletingImageUrl === imageUrl ? '...' : '×'}
                     </button>
                     <img src={imageUrl} alt="Vista previa del perfume" className="uploaded-preview" />
                   </div>
@@ -1562,11 +1643,32 @@ function App() {
               </button>
             </div>
 
+            <p className="section-helper">
+              Arrastra las categorías para definir el orden. El storefront las mostrará de izquierda a derecha en este mismo orden.
+            </p>
+
             <div className="list-stack">
               {categories.map((category) => (
-                <div key={category._id} className="list-item list-item--category">
+                <div
+                  key={category._id}
+                  className={[
+                    'list-item list-item--category',
+                    draggedCategoryId === category._id ? 'list-item--dragging' : '',
+                    categoryDropTargetId === category._id ? 'list-item--drop-target' : '',
+                  ].filter(Boolean).join(' ')}
+                  draggable={!isSavingCategoryOrder}
+                  onDragStart={(event) => handleCategoryDragStart(category._id, event)}
+                  onDragEnter={() => handleCategoryDragEnter(category._id)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => handleCategoryDrop(category._id)}
+                  onDragEnd={resetCategoryDragState}
+                >
                   <div className="list-item__content">
-                    <strong>{category.name}</strong>
+                    <div className="list-item__heading">
+                      <span className="list-item__drag-handle" aria-hidden="true">⋮⋮</span>
+                      <strong>{category.name}</strong>
+                    </div>
+                    <small className="list-item__order-label">Posición {categories.findIndex((item) => item._id === category._id) + 1}</small>
                     <span>{category.description || 'Sin descripción todavía.'}</span>
                   </div>
                   <div className="list-item__toolbar">
