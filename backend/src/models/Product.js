@@ -1,5 +1,20 @@
 import mongoose from 'mongoose'
 
+const productDecantPriceSchema = new mongoose.Schema(
+  {
+    sizeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+  },
+  { _id: false },
+)
+
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -60,6 +75,10 @@ const productSchema = new mongoose.Schema(
     },
     imageUrls: {
       type: [String],
+      default: [],
+    },
+    decantPrices: {
+      type: [productDecantPriceSchema],
       default: [],
     },
     isPublished: {

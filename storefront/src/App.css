@@ -1786,6 +1786,33 @@
   color: var(--text-primary);
 }
 
+.decant-price-stack {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.decant-price-stack__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(233, 198, 128, 0.14);
+}
+
+.decant-price-stack__item span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.decant-price-stack__item strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
 .product-actions {
   display: flex;
   gap: 10px;
@@ -2215,14 +2242,14 @@
   }
 
   .category-ribbon {
-    justify-items: start;
+    justify-items: center;
     gap: 12px;
     margin-bottom: 26px;
   }
 
   .category-ribbon__intro {
-    justify-items: start;
-    text-align: left;
+    justify-items: center;
+    text-align: center;
   }
 
   .filter-row--hero {
@@ -2431,7 +2458,23 @@
 
   .product-grid--showcase {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 10px;
+  }
+
+  .product-card,
+  .product-card--catalog {
+    gap: 8px;
+  }
+
+  .product-carousel {
+    min-height: 154px;
+    border-radius: 20px;
+    padding: 6px 6px 0;
+  }
+
+  .product-image {
+    min-height: 148px;
+    border-radius: 16px;
   }
 
   .detail-actions {
@@ -2644,24 +2687,66 @@
 
   .product-grid--showcase {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 8px;
   }
 
   .product-card--catalog {
-    border-radius: 24px;
+    border-radius: 20px;
   }
 
   .product-body {
-    gap: 10px;
-    padding: 16px;
+    gap: 6px;
+    padding: 10px 8px;
   }
 
   .product-body h3 {
-    font-size: 1.02rem;
+    font-size: 0.84rem;
+    max-width: 100%;
   }
 
   .price-stack--catalog strong {
-    font-size: 1.12rem;
+    font-size: 0.92rem;
+  }
+
+  .decant-price-stack {
+    gap: 5px;
+  }
+
+  .decant-price-stack__item {
+    padding: 7px 8px;
+    border-radius: 12px;
+  }
+
+  .decant-price-stack__item span,
+  .decant-price-stack__item strong {
+    font-size: 0.74rem;
+  }
+
+  .product-card,
+  .product-card--catalog {
+    gap: 6px;
+  }
+
+  .product-carousel {
+    min-height: 126px;
+    border-radius: 18px;
+    padding: 6px 6px 0;
+  }
+
+  .product-image {
+    min-height: 120px;
+    border-radius: 14px;
+  }
+
+  .product-meta {
+    gap: 4px;
+    font-size: 0.5rem;
+    letter-spacing: 0.16em;
+  }
+
+  .product-action {
+    padding: 8px 10px;
+    font-size: 0.8rem;
   }
 
   .cart-sidebar__panel {

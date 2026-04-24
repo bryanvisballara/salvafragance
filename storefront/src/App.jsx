@@ -191,6 +191,29 @@ function formatDeliveryEstimate() {
   }
 }
 
+function getVisibleDecantPrices(product, decantSettings) {
+  const productDecantPrices = Array.isArray(product?.decantPrices) ? product.decantPrices : []
+  const settingsSizes = Array.isArray(decantSettings?.sizes) ? decantSettings.sizes : []
+
+  return settingsSizes
+    .map((size) => {
+      const matchingPrice = productDecantPrices.find(
+        (entry) => String(entry.sizeId) === String(size._id) && Number(entry.price) > 0,
+      )
+
+      if (!matchingPrice) {
+        return null
+      }
+
+      return {
+        sizeId: String(size._id),
+        label: size.label?.trim() || `${Number(size.sizeMl || 0)} ml`,
+        price: Number(matchingPrice.price || 0),
+      }
+    })
+    .filter(Boolean)
+}
+
 function StarRating({ rating, reviews, centered = false }) {
   const fillWidth = `${(rating / 5) * 100}%`
 
@@ -1194,7 +1217,7 @@ function CartIcon() {
 }
 
 function App() {
-  const [payload, setPayload] = useState({ categories: [], products: [], shippingZones: [] })
+  const [payload, setPayload] = useState({ categories: [], products: [], shippingZones: [], decantSettings: { sizes: [] } })
   const [activeCategory, setActiveCategory] = useState('all')
   const [cartItems, setCartItems] = useState({})
   const [isLoading, setIsLoading] = useState(true)
@@ -1249,13 +1272,28 @@ function App() {
 
     loadStorefront()
   }, [])
+
+  useEffect(() => {
+    if (activeCategory === 'decants' && !hasDecantProducts) {
+      setActiveCategory('all')
+    }
+  }, [activeCategory, hasDecantProducts])
   const filteredProducts = useMemo(() => {
+    if (activeCategory === 'decants') {
+      return payload.products.filter((product) => getVisibleDecantPrices(product, payload.decantSettings).length > 0)
+    }
+
     if (activeCategory === 'all') {
       return payload.products
     }
 
     return payload.products.filter((product) => product.category?._id === activeCategory)
-  }, [activeCategory, payload.products])
+  }, [activeCategory, payload.decantSettings, payload.products])
+
+  const hasDecantProducts = useMemo(
+    () => payload.products.some((product) => getVisibleDecantPrices(product, payload.decantSettings).length > 0),
+    [payload.decantSettings, payload.products],
+  )
 
   const cartCount = useMemo(
     () => Object.values(cartItems).reduce((total, quantity) => total + quantity, 0),
@@ -1772,13 +1810,23 @@ function App() {
                 >
                   Todas
                 </button>
+                {hasDecantProducts ? (
+                  <button
+                    type="button"
+                    className={activeCategory === 'decants' ? 'chip chip--active' : 'chip'}
+                    onClick={() => setActiveCategory('decants')}
+                    style={{ '--enter-delay': '90ms' }}
+                  >
+                    Decants
+                  </button>
+                ) : null}
                 {payload.categories.map((category, index) => (
                   <button
                     type="button"
                     key={category._id}
                     className={activeCategory === category._id ? 'chip chip--active' : 'chip'}
                     onClick={() => setActiveCategory(category._id)}
-                    style={{ '--enter-delay': `${(index + 1) * 90}ms` }}
+                    style={{ '--enter-delay': `${(index + (hasDecantProducts ? 2 : 1)) * 90}ms` }}
                   >
                     {category.name}
                   </button>
@@ -1794,6 +1842,8 @@ function App() {
                 <div className="product-grid product-grid--showcase">
                   {filteredProducts.map((product, index) => {
                     const ratingData = getProductRatingData(product)
+                    const visibleDecantPrices = getVisibleDecantPrices(product, payload.decantSettings)
+                    const isDecantView = activeCategory === 'decants'
 
                     return (
                       <article
@@ -1810,14 +1860,25 @@ function App() {
                         />
                         <div className="product-body">
                           <div className="product-meta">
-                            <span>{product.category?.name || 'Selección Saval'}</span>
+                            <span>{isDecantView ? 'Decants' : product.category?.name || 'Selección Saval'}</span>
                           </div>
                           <h3>{product.name}</h3>
                           <StarRating rating={ratingData.rating} reviews={ratingData.reviews} centered />
-                          <div className="price-stack price-stack--catalog">
-                            <span>{formatCurrency(product.basePrice)}</span>
-                            <strong>{formatCurrency(product.offerPrice)}</strong>
-                          </div>
+                          {isDecantView ? (
+                            <div className="decant-price-stack">
+                              {visibleDecantPrices.map((decantPrice) => (
+                                <div key={decantPrice.sizeId} className="decant-price-stack__item">
+                                  <span>{decantPrice.label}</span>
+                                  <strong>{formatCurrency(decantPrice.price)}</strong>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="price-stack price-stack--catalog">
+                              <span>{formatCurrency(product.basePrice)}</span>
+                              <strong>{formatCurrency(product.offerPrice)}</strong>
+                            </div>
+                          )}
                         </div>
                       </article>
                     )

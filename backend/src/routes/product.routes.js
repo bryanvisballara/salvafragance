@@ -4,11 +4,37 @@ import { createHttpError } from '../lib/http-error.js'
 import { requireAuth } from '../middleware/auth.js'
 import Category from '../models/Category.js'
 import Coupon from '../models/Coupon.js'
+import DecantSettings from '../models/DecantSettings.js'
 import Product from '../models/Product.js'
 
 const router = Router()
 
 router.use(requireAuth)
+
+async function normalizeDecantPrices(rawDecantPrices) {
+  const decantPrices = Array.isArray(rawDecantPrices) ? rawDecantPrices : []
+
+  if (!decantPrices.length) {
+    return []
+  }
+
+  const settings = await DecantSettings.findOne({ key: 'default' }).lean()
+  const validSizeIds = new Set((settings?.sizes || []).map((size) => String(size._id)))
+
+  return decantPrices
+    .map((decantPrice) => ({
+      sizeId: String(decantPrice?.sizeId || '').trim(),
+      price: Number(decantPrice?.price),
+    }))
+    .filter((decantPrice) => decantPrice.sizeId && Number.isFinite(decantPrice.price) && decantPrice.price > 0)
+    .map((decantPrice) => {
+      if (!validSizeIds.has(decantPrice.sizeId)) {
+        throw createHttpError(400, 'Uno de los tamaños de decant no existe en la configuración actual.')
+      }
+
+      return decantPrice
+    })
+}
 
 router.get(
   '/',
@@ -36,6 +62,7 @@ router.post(
     const rating = Number(request.body.rating ?? 0)
     const reviewCount = Number(request.body.reviewCount ?? 0)
     const imageUrls = Array.isArray(request.body.imageUrls) ? request.body.imageUrls : []
+    const decantPrices = await normalizeDecantPrices(request.body.decantPrices)
 
     if (!name || !categoryId || Number.isNaN(basePrice) || Number.isNaN(offerPrice) || Number.isNaN(stock)) {
       throw createHttpError(400, 'Product name, category, base price, offer price and stock are required')
@@ -69,6 +96,7 @@ router.post(
       rating,
       reviewCount,
       imageUrls,
+      decantPrices,
     })
 
     const populatedProduct = await Product.findById(product.id).populate('category', 'name').lean()
@@ -90,6 +118,7 @@ router.put(
     const rating = Number(request.body.rating ?? 0)
     const reviewCount = Number(request.body.reviewCount ?? 0)
     const imageUrls = Array.isArray(request.body.imageUrls) ? request.body.imageUrls : []
+    const decantPrices = await normalizeDecantPrices(request.body.decantPrices)
 
     if (!name || !categoryId || Number.isNaN(basePrice) || Number.isNaN(offerPrice) || Number.isNaN(stock)) {
       throw createHttpError(400, 'Product name, category, base price, offer price and stock are required')
@@ -125,7 +154,28 @@ router.put(
         rating,
         reviewCount,
         imageUrls,
+        decantPrices,
       },
+      { new: true, runValidators: true },
+    )
+
+    if (!product) {
+      throw createHttpError(404, 'Product not found')
+    }
+
+    const populatedProduct = await Product.findById(product.id).populate('category', 'name').lean()
+    response.json(populatedProduct)
+  }),
+)
+
+router.put(
+  '/:id/decants',
+  asyncHandler(async (request, response) => {
+    const decantPrices = await normalizeDecantPrices(request.body.decantPrices)
+
+    const product = await Product.findByIdAndUpdate(
+      request.params.id,
+      { decantPrices },
       { new: true, runValidators: true },
     )
 

@@ -24,6 +24,7 @@ const adminHomePath = adminBasePath ? `${adminBasePath}/` : '/'
 const adminLoginPath = adminBasePath ? `${adminBasePath}/login` : '/login'
 
 const emptyCategoryForm = { name: '', description: '' }
+const emptyDecantSettings = { key: 'default', sizes: [] }
 const emptyProductForm = {
   name: '',
   categoryId: '',
@@ -57,6 +58,7 @@ const navigationItems = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'categorias', label: 'Categorías' },
   { id: 'publicaciones', label: 'Publicaciones' },
+  { id: 'decants', label: 'Decants' },
   { id: 'envios', label: 'Envíos' },
   { id: 'cupones', label: 'Cupones' },
   { id: 'ordenes', label: 'Órdenes' },
@@ -111,6 +113,11 @@ function getCouponStatus(coupon) {
 
 function isFallbackShippingZone(zone) {
   return Boolean(zone?.isFallback) || String(zone?.place || '').trim().toLowerCase() === 'otra'
+}
+
+function formatDecantSize(size) {
+  const sizeMl = Number(size?.sizeMl || 0)
+  return `${sizeMl} ml`
 }
 
 function buildMarketingWhatsAppLink(phone, message) {
@@ -257,6 +264,7 @@ function App() {
   const [loginData, setLoginData] = useState({ email: adminEmail, password: '' })
   const [loginError, setLoginError] = useState('')
   const [categories, setCategories] = useState([])
+  const [decantSettings, setDecantSettings] = useState(emptyDecantSettings)
   const [products, setProducts] = useState([])
   const [shippingZones, setShippingZones] = useState([])
   const [customers, setCustomers] = useState([])
@@ -285,8 +293,11 @@ function App() {
   const [draggedCategoryId, setDraggedCategoryId] = useState('')
   const [categoryDropTargetId, setCategoryDropTargetId] = useState('')
   const [isSavingCategoryOrder, setIsSavingCategoryOrder] = useState(false)
+  const [isSavingDecantSettings, setIsSavingDecantSettings] = useState(false)
+  const [savingProductDecantId, setSavingProductDecantId] = useState('')
   const [isSendingMarketingEmail, setIsSendingMarketingEmail] = useState(false)
   const [expandedProductDescriptions, setExpandedProductDescriptions] = useState({})
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState([])
   const productImageDragSensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -407,6 +418,22 @@ function App() {
         .some((value) => value.toLowerCase().includes(normalizedFilter)),
     )
   }, [customers, marketingFilter])
+
+  const categoryProductsMap = useMemo(
+    () =>
+      products.reduce((map, product) => {
+        const categoryId = product.category?._id || product.category
+
+        if (!categoryId) {
+          return map
+        }
+
+        const currentProducts = map.get(categoryId) || []
+        map.set(categoryId, [...currentProducts, product])
+        return map
+      }, new Map()),
+    [products],
+  )
 
   const selectedMarketingCustomers = useMemo(
     () => customers.filter((customer) => selectedMarketingCustomerIds.includes(customer._id)),
@@ -591,6 +618,7 @@ function App() {
     localStorage.removeItem('sf_admin_email')
     setLoginData({ email: 'cfrap555@gmail.com', password: '' })
     setCategories([])
+    setDecantSettings(emptyDecantSettings)
     setProducts([])
     setShippingZones([])
     setCustomers([])
@@ -600,6 +628,7 @@ function App() {
     setMarketingForm(emptyMarketingForm)
     setSelectedMarketingCustomerIds([])
     setExpandedProductDescriptions({})
+    setExpandedCategoryIds([])
     setActivePage('dashboard')
     setDashboardMessage('')
   }
@@ -703,8 +732,9 @@ function App() {
 
     try {
       const headers = activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
-      const [categoryRows, productRows, shippingRows, customerRows, orderRows, couponRows] = await Promise.all([
+      const [categoryRows, decantRows, productRows, shippingRows, customerRows, orderRows, couponRows] = await Promise.all([
         apiRequest('/categories', { headers }),
+        apiRequest('/decants', { headers }),
         apiRequest('/products', { headers }),
         apiRequest('/shipping-zones', { headers }),
         apiRequest('/customers', { headers }),
@@ -713,6 +743,7 @@ function App() {
       ])
 
       setCategories(categoryRows)
+  setDecantSettings(decantRows || emptyDecantSettings)
       setProducts(productRows)
       setShippingZones(shippingRows)
       setCustomers(customerRows)
@@ -1191,6 +1222,134 @@ function App() {
       ...current,
       productIds: categoryProductIds,
     }))
+  }
+
+  function toggleCategoryExpansion(categoryId) {
+    setExpandedCategoryIds((current) =>
+      current.includes(categoryId)
+        ? current.filter((currentId) => currentId !== categoryId)
+        : [...current, categoryId],
+    )
+  }
+
+  function handleDecantSizeChange(index, field, value) {
+    setDecantSettings((current) => ({
+      ...current,
+      sizes: current.sizes.map((size, sizeIndex) =>
+        sizeIndex === index ? { ...size, [field]: value } : size,
+      ),
+    }))
+  }
+
+  function handleAddDecantSize() {
+    setDecantSettings((current) => ({
+      ...current,
+      sizes: [
+        ...current.sizes,
+        {
+          label: '',
+          sizeMl: '',
+        },
+      ],
+    }))
+  }
+
+  function handleRemoveDecantSize(index) {
+    setDecantSettings((current) => ({
+      ...current,
+      sizes: current.sizes.filter((_, sizeIndex) => sizeIndex !== index),
+    }))
+  }
+
+  async function handleSaveDecantSettings() {
+    try {
+      setIsSavingDecantSettings(true)
+
+      const savedSettings = await apiRequest('/decants', {
+        method: 'PUT',
+        body: JSON.stringify({
+          sizes: decantSettings.sizes.map((size) => ({
+            ...(size._id ? { _id: size._id } : {}),
+            label: size.label,
+            sizeMl: size.sizeMl,
+          })),
+        }),
+      })
+
+      setDecantSettings(savedSettings)
+      showSuccess('Configuración de decants actualizada correctamente.')
+    } catch (error) {
+      setDashboardMessage(error.message)
+    } finally {
+      setIsSavingDecantSettings(false)
+    }
+  }
+
+  function handleProductDecantPriceChange(productId, sizeId, value) {
+    setProducts((current) =>
+      current.map((product) => {
+        if (product._id !== productId) {
+          return product
+        }
+
+        const nextPrices = Array.isArray(product.decantPrices) ? [...product.decantPrices] : []
+        const existingIndex = nextPrices.findIndex((entry) => String(entry.sizeId) === String(sizeId))
+
+        if (!value.trim()) {
+          if (existingIndex !== -1) {
+            nextPrices.splice(existingIndex, 1)
+          }
+
+          return {
+            ...product,
+            decantPrices: nextPrices,
+          }
+        }
+
+        const nextEntry = {
+          sizeId,
+          price: value,
+        }
+
+        if (existingIndex === -1) {
+          nextPrices.push(nextEntry)
+        } else {
+          nextPrices[existingIndex] = nextEntry
+        }
+
+        return {
+          ...product,
+          decantPrices: nextPrices,
+        }
+      }),
+    )
+  }
+
+  async function handleSaveProductDecants(product) {
+    try {
+      setSavingProductDecantId(product._id)
+
+      const savedProduct = await apiRequest(`/products/${product._id}/decants`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          decantPrices: (product.decantPrices || []).map((entry) => ({
+            sizeId: entry.sizeId,
+            price: entry.price,
+          })),
+        }),
+      })
+
+      setProducts((current) =>
+        current.map((currentProduct) =>
+          currentProduct._id === savedProduct._id ? savedProduct : currentProduct,
+        ),
+      )
+      showSuccess(`Precios de decants actualizados para ${product.name}.`)
+    } catch (error) {
+      setDashboardMessage(error.message)
+    } finally {
+      setSavingProductDecantId('')
+    }
   }
 
   function renderModal() {
@@ -1778,6 +1937,13 @@ function App() {
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={() => handleCategoryDrop(category._id)}
                   onDragEnd={resetCategoryDragState}
+                  onClick={(event) => {
+                    if (event.target.closest('button')) {
+                      return
+                    }
+
+                    toggleCategoryExpansion(category._id)
+                  }}
                 >
                   <div className="list-item__content">
                     <div className="list-item__heading">
@@ -1786,6 +1952,9 @@ function App() {
                     </div>
                     <small className="list-item__order-label">Posición {categories.findIndex((item) => item._id === category._id) + 1}</small>
                     <span>{category.description || 'Sin descripción todavía.'}</span>
+                    <span className="list-item__hint">
+                      {expandedCategoryIds.includes(category._id) ? 'Ocultar publicaciones' : 'Ver publicaciones de esta categoría'}
+                    </span>
                   </div>
                   <div className="list-item__toolbar">
                     <button type="button" className="list-item__edit" onClick={() => openEditModal('category', category)}>
@@ -1795,6 +1964,31 @@ function App() {
                       Eliminar
                     </button>
                   </div>
+
+                  {expandedCategoryIds.includes(category._id) ? (
+                    <div className="category-linked-products">
+                      {(categoryProductsMap.get(category._id) || []).length ? (
+                        (categoryProductsMap.get(category._id) || []).map((product) => (
+                          <div key={product._id} className="category-linked-products__item">
+                            <div>
+                              <strong>{product.name}</strong>
+                              <span>{formatCurrency(product.offerPrice)} · Stock {product.stock || 0}</span>
+                            </div>
+                            <div className="row-actions">
+                              <button type="button" className="table-row__edit" onClick={() => openEditModal('product', product)}>
+                                Modificar
+                              </button>
+                              <button type="button" className="table-row__delete" onClick={() => openDeleteModal('product', product)}>
+                                Eliminar
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="empty-state">Esta categoría todavía no tiene publicaciones asociadas.</p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -1868,6 +2062,126 @@ function App() {
                   </div>
                 </div>
               ))}
+            </div>
+          </article>
+        </section>
+      )
+    }
+
+    if (activePage === 'decants') {
+      return (
+        <section className="admin-section">
+          {dashboardMessage ? <p className="status-note">{dashboardMessage}</p> : null}
+
+          <article className="admin-card">
+            <div className="section-header">
+              <div className="card-heading">
+                <p className="eyebrow">Módulo 03</p>
+                <h3>Decants</h3>
+                <p>
+                  Define los tamaños globales de decants y luego asigna precios por publicación.
+                  Solo los perfumes con precios configurados aparecerán en el chip Decants del storefront.
+                </p>
+              </div>
+              <button type="button" onClick={handleAddDecantSize}>
+                Agregar tamaño
+              </button>
+            </div>
+
+            <div className="decant-settings-grid">
+              {decantSettings.sizes.map((size, index) => (
+                <div key={size._id || `new-${index}`} className="decant-size-card">
+                  <label className="toggle-field">
+                    <span>Etiqueta</span>
+                    <input
+                      type="text"
+                      value={size.label || ''}
+                      onChange={(event) => handleDecantSizeChange(index, 'label', event.target.value)}
+                      placeholder="Ej. Decant 5 ml"
+                    />
+                  </label>
+                  <label className="toggle-field">
+                    <span>Tamaño en ml</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={size.sizeMl}
+                      onChange={(event) => handleDecantSizeChange(index, 'sizeMl', event.target.value)}
+                      placeholder="5"
+                    />
+                  </label>
+                  <button type="button" className="table-row__delete" onClick={() => handleRemoveDecantSize(index)}>
+                    Eliminar tamaño
+                  </button>
+                </div>
+              ))}
+
+              {!decantSettings.sizes.length ? (
+                <p className="empty-state">Todavía no has configurado tamaños de decants.</p>
+              ) : null}
+            </div>
+
+            <div className="row-actions row-actions--start">
+              <button type="button" onClick={handleSaveDecantSettings} disabled={isSavingDecantSettings}>
+                {isSavingDecantSettings ? 'Guardando tamaños...' : 'Guardar tamaños de decants'}
+              </button>
+            </div>
+          </article>
+
+          <article className="admin-card">
+            <div className="card-heading">
+              <p className="eyebrow">Precios por publicación</p>
+              <h3>Perfumes vinculados a decants</h3>
+              <p>
+                Cada publicación aparece automáticamente aquí. Si una publicación no tiene al menos un precio de decant, no se mostrará en el storefront bajo el chip Decants.
+              </p>
+            </div>
+
+            <div className="decant-product-list">
+              {products.map((product) => (
+                <div key={product._id} className="decant-product-card">
+                  <div className="decant-product-card__header">
+                    <div>
+                      <strong>{product.name}</strong>
+                      <span>{product.category?.name || 'Sin categoría'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveProductDecants(product)}
+                      disabled={savingProductDecantId === product._id || !decantSettings.sizes.length}
+                    >
+                      {savingProductDecantId === product._id ? 'Guardando...' : 'Guardar precios'}
+                    </button>
+                  </div>
+
+                  <div className="decant-product-card__prices">
+                    {decantSettings.sizes.map((size) => {
+                      const currentPrice = (product.decantPrices || []).find(
+                        (entry) => String(entry.sizeId) === String(size._id),
+                      )
+
+                      return (
+                        <label key={size._id} className="toggle-field">
+                          <span>{size.label?.trim() || formatDecantSize(size)}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={currentPrice?.price ?? ''}
+                            onChange={(event) => handleProductDecantPriceChange(product._id, size._id, event.target.value)}
+                            placeholder={`Precio para ${formatDecantSize(size)}`}
+                          />
+                        </label>
+                      )
+                    })}
+
+                    {!decantSettings.sizes.length ? (
+                      <p className="empty-state">Primero configura uno o más tamaños para poder asignar precios.</p>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+
+              {!products.length ? <p className="empty-state">Todavía no hay publicaciones creadas.</p> : null}
             </div>
           </article>
         </section>

@@ -6,6 +6,7 @@ import { buildAdminOrderNotificationEmail, buildOrderPlacedEmail } from '../lib/
 import { createHttpError } from '../lib/http-error.js'
 import Category from '../models/Category.js'
 import Customer from '../models/Customer.js'
+import DecantSettings from '../models/DecantSettings.js'
 import Order from '../models/Order.js'
 import Product from '../models/Product.js'
 import ShippingZone from '../models/ShippingZone.js'
@@ -120,13 +121,19 @@ router.post(
 router.get(
   '/',
   asyncHandler(async (_request, response) => {
-    const [categories, products, shippingZones] = await Promise.all([
+    const [categories, products, shippingZones, decantSettings] = await Promise.all([
       Category.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 }).lean(),
       Product.find({ isPublished: true }).populate('category', 'name').sort({ createdAt: -1 }).lean(),
       ShippingZone.find({ isActive: true }).sort({ place: 1 }).lean(),
+      DecantSettings.findOne({ key: 'default' }).lean(),
     ])
 
-    response.json({ categories, products, shippingZones })
+    response.json({
+      categories,
+      products,
+      shippingZones,
+      decantSettings: decantSettings || { key: 'default', sizes: [] },
+    })
   }),
 )
 

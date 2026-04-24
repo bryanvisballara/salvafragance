@@ -11,6 +11,7 @@ import publicRouter from './routes/public.routes.js'
 import customerRouter from './routes/customer.routes.js'
 import orderRouter from './routes/order.routes.js'
 import couponRouter from './routes/coupon.routes.js'
+import decantRouter from './routes/decant.routes.js'
 import marketingRouter from './routes/marketing.routes.js'
 import uploadRouter from './routes/upload.routes.js'
 import { seedAdminUser } from './services/seed-admin.js'
@@ -52,6 +53,7 @@ app.use('/api/shipping-zones', shippingRouter)
 app.use('/api/customers', customerRouter)
 app.use('/api/orders', orderRouter)
 app.use('/api/coupons', couponRouter)
+app.use('/api/decants', decantRouter)
 app.use('/api/marketing', marketingRouter)
 app.use('/api/uploads', uploadRouter)
 app.use('/api/storefront', publicRouter)
