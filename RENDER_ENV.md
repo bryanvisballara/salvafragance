@@ -14,7 +14,7 @@ CLIENT_URL=https://savalfragance.com,https://www.savalfragance.com,https://salva
 BREVO_API_KEY=<tu_brevo_api_key>
 BREVO_SENDER_EMAIL=orders@savalfragance.com
 BREVO_SENDER_NAME=Saval Fragance
-CLOUDINARY_CLOUD_NAME=Saval Fragance
+CLOUDINARY_CLOUD_NAME=duh2g4lo0
 CLOUDINARY_API_KEY=<tu_cloudinary_api_key>
 CLOUDINARY_API_SECRET=<tu_cloudinary_api_secret>
 CLOUDINARY_UPLOAD_FOLDER=saval-fragance/products
@@ -36,4 +36,4 @@ Notas
 - `ADMIN_ORDER_EMAIL` es opcional; si existe, recibira las notificaciones de nuevas ordenes del checkout. Si no existe, se usa `ADMIN_EMAIL`.
 - `JWT_SECRET` debe cambiarse por un valor largo y privado antes de produccion real.
 - Brevo enviara el correo de pedido recibido y el correo con numero de seguimiento.
-- Cloudinary requiere `CLOUDINARY_CLOUD_NAME`; aqui quedo configurado como `Saval Fragance`, pero si Cloudinary devuelve error de credenciales revisa que sea el cloud name tecnico exacto de tu consola.
+- Cloudinary requiere `CLOUDINARY_CLOUD_NAME`; debe ser el cloud name tecnico exacto de tu consola. En este proyecto el valor valido es `duh2g4lo0`.

@@ -2,6 +2,10 @@ import { v2 as cloudinary } from 'cloudinary'
 
 let configured = false
 
+function getCloudinaryConfigHint() {
+  return 'Verifica CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en Render.'
+}
+
 function getCloudinaryCredentials() {
   return {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME?.trim() || '',
@@ -43,6 +47,10 @@ function ensureCloudinary() {
 
   const credentials = getCloudinaryCredentials()
 
+  if (credentials.cloudName.includes(' ')) {
+    throw new Error('CLOUDINARY_CLOUD_NAME debe ser el cloud name tecnico de Cloudinary, sin espacios. ' + getCloudinaryConfigHint())
+  }
+
   cloudinary.config({
     cloud_name: credentials.cloudName,
     api_key: credentials.apiKey,
@@ -57,6 +65,16 @@ function normalizePublicId(fileName) {
     .replace(/[^a-zA-Z0-9/_-]+/g, '-')
     .replace(/-{2,}/g, '-')
     .replace(/^-|-$/g, '')
+}
+
+function formatCloudinaryError(operation, error) {
+  const message = error?.message || `Cloudinary ${operation} failed`
+
+  if (/invalid signature/i.test(message)) {
+    return new Error(`Cloudinary rechazo la firma durante ${operation}. ${getCloudinaryConfigHint()} Detalle: ${message}`)
+  }
+
+  return new Error(`Cloudinary fallo durante ${operation}. ${message}`)
 }
 
 export async function uploadImageBuffer(fileBuffer, fileName) {
@@ -81,7 +99,7 @@ export async function uploadImageBuffer(fileBuffer, fileName) {
       },
       (error, result) => {
         if (error) {
-          reject(error)
+          reject(formatCloudinaryError('la subida de imagenes', error))
           return
         }
 
@@ -103,7 +121,13 @@ export async function deleteImageByUrl(imageUrl) {
   }
 
   const publicId = getPublicIdFromCloudinaryUrl(imageUrl)
-  const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' })
+  let result
+
+  try {
+    result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' })
+  } catch (error) {
+    throw formatCloudinaryError('el borrado de imagenes', error)
+  }
 
   if (result.result !== 'ok' && result.result !== 'not found') {
     throw new Error('Cloudinary image could not be deleted')

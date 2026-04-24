@@ -138,8 +138,10 @@ router.post(
     const items = Array.isArray(request.body.items) ? request.body.items : []
     const shippingZone = request.body.shippingZone || null
     const coupon = request.body.coupon || null
+    const paymentMethod = request.body.paymentMethod?.trim() || ''
     const baseSubtotalAmount = Number(request.body.baseSubtotalAmount || 0)
     const discountAmount = Number(request.body.discountAmount || 0)
+    const surchargeAmount = Number(request.body.surchargeAmount || 0)
     const totalAmount = Number(request.body.totalAmount || 0)
     const adminEmail = process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL
 
@@ -151,8 +153,52 @@ router.post(
       throw createHttpError(400, 'Order notification items and shipping are required')
     }
 
+    const customerEmail = customer.email.trim().toLowerCase()
+    const customerAddress = [customer.address?.trim(), customer.neighborhood?.trim()].filter(Boolean).join(', ')
+    const customerNotes = [
+      `Checkout: ${reference}`,
+      customer.documentType?.trim() && customer.documentNumber?.trim()
+        ? `Documento: ${customer.documentType.trim()} ${customer.documentNumber.trim()}`
+        : null,
+      customer.state?.trim() ? `Departamento: ${customer.state.trim()}` : null,
+      shippingZone?.place ? `Envío: ${shippingZone.place}` : null,
+      paymentMethod ? `Pago: ${paymentMethod}` : null,
+      coupon?.name ? `Cupón: ${coupon.name}` : null,
+      surchargeAmount > 0 ? `Recargo contra entrega: ${formatCurrency(surchargeAmount)}` : null,
+      `Total checkout: ${formatCurrency(totalAmount)}`,
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    const storedCustomer = await Customer.findOneAndUpdate(
+      { email: customerEmail },
+      {
+        $set: {
+          firstName: customer.firstName.trim(),
+          lastName: customer.lastName.trim(),
+          phone: customer.phone.trim(),
+          email: customerEmail,
+          city: customer.city?.trim() || shippingZone.place.trim(),
+          address: customerAddress,
+          notes: customerNotes,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+      },
+    )
+
     if (!adminEmail) {
-      response.json({ notified: false, skipped: true, reason: 'ADMIN_EMAIL is missing' })
+      response.json({
+        notified: false,
+        skipped: true,
+        reason: 'ADMIN_EMAIL is missing',
+        customerStored: Boolean(storedCustomer),
+        customerId: storedCustomer?._id || null,
+      })
       return
     }
 
@@ -187,10 +233,21 @@ router.post(
         }),
       })
 
-      response.json({ notified: !delivery?.skipped, skipped: Boolean(delivery?.skipped) })
+      response.json({
+        notified: !delivery?.skipped,
+        skipped: Boolean(delivery?.skipped),
+        customerStored: Boolean(storedCustomer),
+        customerId: storedCustomer?._id || null,
+      })
     } catch (error) {
       console.error('Admin order notification failed', error)
-      response.json({ notified: false, skipped: true, reason: error.message })
+      response.json({
+        notified: false,
+        skipped: true,
+        reason: error.message,
+        customerStored: Boolean(storedCustomer),
+        customerId: storedCustomer?._id || null,
+      })
     }
   }),
 )
