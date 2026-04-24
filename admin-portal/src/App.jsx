@@ -24,7 +24,7 @@ const adminHomePath = adminBasePath ? `${adminBasePath}/` : '/'
 const adminLoginPath = adminBasePath ? `${adminBasePath}/login` : '/login'
 
 const emptyCategoryForm = { name: '', description: '' }
-const emptyDecantSettings = { key: 'default', sizes: [] }
+const emptyDecantSettings = { key: 'default', sortOrder: 999, sizes: [] }
 const emptyProductForm = {
   name: '',
   categoryId: '',
@@ -54,6 +54,7 @@ const emptyMarketingForm = {
 const emptyTrackingForm = { shippingCarrier: '', trackingNumber: '' }
 const emptyModalState = { type: '', mode: 'create', item: null }
 const emptyDeleteState = { type: '', item: null }
+const emptySuccessState = { message: '', action: null }
 const navigationItems = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'categorias', label: 'Categorías' },
@@ -62,8 +63,21 @@ const navigationItems = [
   { id: 'envios', label: 'Envíos' },
   { id: 'cupones', label: 'Cupones' },
   { id: 'ordenes', label: 'Órdenes' },
+  { id: 'pre-ordenes', label: 'Pre órdenes' },
   { id: 'marketing', label: 'Marketing' },
   { id: 'base-de-datos', label: 'Base de datos' },
+]
+
+const phoneCountryOptions = [
+  { value: '+57', label: 'Colombia (+57)' },
+  { value: '+1', label: 'Estados Unidos (+1)' },
+  { value: '+52', label: 'México (+52)' },
+  { value: '+54', label: 'Argentina (+54)' },
+  { value: '+56', label: 'Chile (+56)' },
+  { value: '+58', label: 'Venezuela (+58)' },
+  { value: '+51', label: 'Perú (+51)' },
+  { value: '+593', label: 'Ecuador (+593)' },
+  { value: '+34', label: 'España (+34)' },
 ]
 
 function formatCurrency(value) {
@@ -125,6 +139,84 @@ function buildMarketingWhatsAppLink(phone, message) {
   return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`
 }
 
+function normalizePhoneNumber(phoneCountryCode, phone) {
+  const countryCode = String(phoneCountryCode || '+57').replace(/\D/g, '')
+  const phoneDigits = String(phone || '').replace(/\D/g, '')
+  return `${countryCode}${phoneDigits}`
+}
+
+function getPaymentMethodLabel(paymentMethod) {
+  if (paymentMethod === 'cash_on_delivery') {
+    return 'Efectivo contra entrega'
+  }
+
+  if (paymentMethod === 'online') {
+    return 'Pago en línea'
+  }
+
+  return 'Sin definir'
+}
+
+function getOrderItems(order) {
+  if (Array.isArray(order?.items) && order.items.length) {
+    return order.items
+  }
+
+  if (order?.product?.name) {
+    return [
+      {
+        name: order.product.name,
+        variantLabel: '',
+        quantity: 1,
+        unitPrice: Number(order.totalAmount || order.product.offerPrice || 0),
+        lineTotal: Number(order.totalAmount || order.product.offerPrice || 0),
+      },
+    ]
+  }
+
+  return []
+}
+
+function getOrderTitle(order) {
+  const items = getOrderItems(order)
+
+  if (!items.length) {
+    return 'Pedido Saval Fragance'
+  }
+
+  const [firstItem] = items
+  const firstLabel = firstItem.variantLabel ? `${firstItem.name} · ${firstItem.variantLabel}` : firstItem.name
+
+  if (items.length === 1) {
+    return firstLabel
+  }
+
+  return `${firstLabel} + ${items.length - 1} más`
+}
+
+function buildTrackingWhatsAppLink(order) {
+  const items = getOrderItems(order)
+  const customerPhone = normalizePhoneNumber(order.customer?.phoneCountryCode || '+57', order.customer?.phone || '')
+  const itemLines = items.map((item) => {
+    const itemLabel = item.variantLabel ? `${item.name} · ${item.variantLabel}` : item.name
+    return `- ${itemLabel} x${item.quantity} (${formatCurrency(item.lineTotal)})`
+  })
+
+  const message = [
+    `Hola ${order.customer?.firstName || ''}, tu orden${order.reference ? ` ${order.reference}` : ''} ya va en camino.`,
+    '',
+    'Detalle del pedido:',
+    ...itemLines,
+    '',
+    `Transportadora: ${order.shippingCarrier || 'Pendiente'}`,
+    `Número de guía: ${order.trackingNumber || 'Pendiente'}`,
+    `Destino: ${order.shippingPlace || order.customer?.city || 'Sin definir'}`,
+    `Total: ${formatCurrency(order.totalAmount || 0)}`,
+  ].join('\n')
+
+  return `https://wa.me/${customerPhone}?text=${encodeURIComponent(message)}`
+}
+
 function isSameDay(leftDate, rightDate) {
   return (
     leftDate.getFullYear() === rightDate.getFullYear() &&
@@ -161,6 +253,11 @@ function reorderCategoryList(categories, draggedCategoryId, targetCategoryId) {
   nextCategories.splice(targetIndex, 0, draggedCategory)
 
   return nextCategories
+}
+
+function normalizeOrderValue(value, fallbackValue) {
+  const parsedValue = Number(value)
+  return Number.isFinite(parsedValue) ? parsedValue : fallbackValue
 }
 
 function reorderProductImageList(imageUrls, draggedImageUrl, targetImageUrl) {
@@ -269,6 +366,7 @@ function App() {
   const [shippingZones, setShippingZones] = useState([])
   const [customers, setCustomers] = useState([])
   const [orders, setOrders] = useState([])
+  const [preOrders, setPreOrders] = useState([])
   const [coupons, setCoupons] = useState([])
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [productForm, setProductForm] = useState(emptyProductForm)
@@ -284,7 +382,7 @@ function App() {
   const [activePage, setActivePage] = useState('dashboard')
   const [modalState, setModalState] = useState(emptyModalState)
   const [deleteState, setDeleteState] = useState(emptyDeleteState)
-  const [successMessage, setSuccessMessage] = useState('')
+  const [successState, setSuccessState] = useState(emptySuccessState)
   const [isLoading, setIsLoading] = useState(false)
   const [dashboardMessage, setDashboardMessage] = useState('')
   const [productFiles, setProductFiles] = useState([])
@@ -434,6 +532,32 @@ function App() {
       }, new Map()),
     [products],
   )
+
+  const orderedCategoryItems = useMemo(() => {
+    const categoryItems = categories.map((category, index) => ({
+      ...category,
+      type: 'category',
+      sortOrder: normalizeOrderValue(category.sortOrder, index),
+    }))
+    const decantsSortOrder = normalizeOrderValue(decantSettings.sortOrder, categoryItems.length)
+
+    return [
+      ...categoryItems,
+      {
+        _id: 'decants',
+        name: 'Decants',
+        description: 'Chip especial del storefront para perfumes con tamaños de decants configurados.',
+        type: 'decants',
+        sortOrder: decantsSortOrder,
+      },
+    ].sort((leftItem, rightItem) => {
+      if (leftItem.sortOrder !== rightItem.sortOrder) {
+        return leftItem.sortOrder - rightItem.sortOrder
+      }
+
+      return leftItem.type === 'decants' ? 1 : -1
+    })
+  }, [categories, decantSettings.sortOrder])
 
   const selectedMarketingCustomers = useMemo(
     () => customers.filter((customer) => selectedMarketingCustomerIds.includes(customer._id)),
@@ -589,15 +713,15 @@ function App() {
   }
 
   function closeSuccessModal() {
-    setSuccessMessage('')
+    setSuccessState(emptySuccessState)
   }
 
   function closeErrorModal() {
     setDashboardMessage('')
   }
 
-  function showSuccess(message) {
-    setSuccessMessage(message)
+  function showSuccess(message, action = null) {
+    setSuccessState({ message, action })
   }
 
   useEffect(() => {
@@ -623,6 +747,7 @@ function App() {
     setShippingZones([])
     setCustomers([])
     setOrders([])
+    setPreOrders([])
     setCoupons([])
     setMarketingFilter('')
     setMarketingForm(emptyMarketingForm)
@@ -732,13 +857,14 @@ function App() {
 
     try {
       const headers = activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
-      const [categoryRows, decantRows, productRows, shippingRows, customerRows, orderRows, couponRows] = await Promise.all([
+      const [categoryRows, decantRows, productRows, shippingRows, customerRows, orderRows, preOrderRows, couponRows] = await Promise.all([
         apiRequest('/categories', { headers }),
         apiRequest('/decants', { headers }),
         apiRequest('/products', { headers }),
         apiRequest('/shipping-zones', { headers }),
         apiRequest('/customers', { headers }),
         apiRequest('/orders', { headers }),
+        apiRequest('/preorders', { headers }),
         apiRequest('/coupons', { headers }),
       ])
 
@@ -748,6 +874,7 @@ function App() {
       setShippingZones(shippingRows)
       setCustomers(customerRows)
       setOrders(orderRows)
+      setPreOrders(preOrderRows)
       setCoupons(couponRows)
       setProductForm((current) => ({
         ...current,
@@ -884,30 +1011,59 @@ function App() {
     }
 
     const previousCategories = categories
-    const nextCategories = reorderCategoryList(categories, draggedCategoryId, targetCategoryId)
+    const previousDecantSettings = decantSettings
+    const nextOrderItems = reorderCategoryList(orderedCategoryItems, draggedCategoryId, targetCategoryId)
 
     resetCategoryDragState()
 
-    if (nextCategories === categories) {
+    if (nextOrderItems === orderedCategoryItems) {
       return
     }
 
+    const nextCategories = nextOrderItems
+      .map((item, index) => ({ ...item, sortOrder: index }))
+      .filter((item) => item.type === 'category')
+      .map(({ type, ...category }) => category)
+    const nextDecantSortOrder = nextOrderItems.findIndex((item) => item._id === 'decants')
+
     setCategories(nextCategories)
+    setDecantSettings((current) => ({
+      ...current,
+      sortOrder: nextDecantSortOrder,
+    }))
     setIsSavingCategoryOrder(true)
 
     try {
-      const reorderedCategories = await apiRequest('/categories/reorder', {
-        method: 'PUT',
-        body: JSON.stringify({
-          categoryIds: nextCategories.map((category) => category._id),
+      const [reorderedCategories, savedDecantSettings] = await Promise.all([
+        apiRequest('/categories/reorder', {
+          method: 'PUT',
+          body: JSON.stringify({
+            categoryOrders: nextCategories.map((category) => ({
+              id: category._id,
+              sortOrder: category.sortOrder,
+            })),
+          }),
         }),
-      })
+        apiRequest('/decants', {
+          method: 'PUT',
+          body: JSON.stringify({
+            sortOrder: nextDecantSortOrder,
+            sizes: (decantSettings.sizes || []).map((size) => ({
+              ...(size._id ? { _id: size._id } : {}),
+              label: size.label,
+              sizeMl: size.sizeMl,
+            })),
+          }),
+        }),
+      ])
 
       setCategories(reorderedCategories)
+      setDecantSettings(savedDecantSettings)
       setDashboardMessage('')
-      showSuccess('Orden de categorías actualizado correctamente.')
+      showSuccess('Orden de categorías y Decants actualizado correctamente.')
     } catch (error) {
       setCategories(previousCategories)
+      setDecantSettings(previousDecantSettings)
       setDashboardMessage(error.message)
     } finally {
       setIsSavingCategoryOrder(false)
@@ -1046,7 +1202,24 @@ function App() {
         current.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)),
       )
       closeModal()
-      showSuccess('Seguimiento agregado y correo enviado al cliente.')
+      showSuccess('Tracking agregado y correo enviado al cliente.', {
+        label: 'Abrir WhatsApp',
+        href: buildTrackingWhatsAppLink(updatedOrder),
+      })
+    } catch (error) {
+      setDashboardMessage(error.message)
+    }
+  }
+
+  async function handleConfirmPreOrder(preOrder) {
+    try {
+      const confirmedOrder = await apiRequest(`/preorders/${preOrder._id}/confirm`, {
+        method: 'POST',
+      })
+
+      setPreOrders((current) => current.filter((currentPreOrder) => currentPreOrder._id !== preOrder._id))
+      setOrders((current) => [confirmedOrder, ...current])
+      showSuccess('El cliente fue movido a Órdenes y recibió el correo de confirmación.')
     } catch (error) {
       setDashboardMessage(error.message)
     }
@@ -1268,6 +1441,7 @@ function App() {
       const savedSettings = await apiRequest('/decants', {
         method: 'PUT',
         body: JSON.stringify({
+          sortOrder: decantSettings.sortOrder,
           sizes: decantSettings.sizes.map((size) => ({
             ...(size._id ? { _id: size._id } : {}),
             label: size.label,
@@ -1602,7 +1776,7 @@ function App() {
                 }
                 placeholder="Número de seguimiento"
               />
-              <button type="submit">Guardar y notificar</button>
+              <button type="submit">Guardar tracking y notificar</button>
             </form>
           </div>
         </div>
@@ -1923,7 +2097,11 @@ function App() {
             </p>
 
             <div className="list-stack">
-              {categories.map((category) => (
+              {orderedCategoryItems.map((category, index) => {
+                const isDecantsCard = category.type === 'decants'
+                const isExpanded = !isDecantsCard && expandedCategoryIds.includes(category._id)
+
+                return (
                 <div
                   key={category._id}
                   className={[
@@ -1938,6 +2116,10 @@ function App() {
                   onDrop={() => handleCategoryDrop(category._id)}
                   onDragEnd={resetCategoryDragState}
                   onClick={(event) => {
+                    if (isDecantsCard) {
+                      return
+                    }
+
                     if (event.target.closest('button')) {
                       return
                     }
@@ -1950,22 +2132,28 @@ function App() {
                       <span className="list-item__drag-handle" aria-hidden="true">⋮⋮</span>
                       <strong>{category.name}</strong>
                     </div>
-                    <small className="list-item__order-label">Posición {categories.findIndex((item) => item._id === category._id) + 1}</small>
+                    <small className="list-item__order-label">Posición {index + 1}</small>
                     <span>{category.description || 'Sin descripción todavía.'}</span>
-                    <span className="list-item__hint">
-                      {expandedCategoryIds.includes(category._id) ? 'Ocultar publicaciones' : 'Ver publicaciones de esta categoría'}
-                    </span>
+                    {!isDecantsCard ? (
+                      <span className="list-item__hint">
+                        {isExpanded ? 'Ocultar publicaciones' : 'Ver publicaciones de esta categoría'}
+                      </span>
+                    ) : (
+                      <span className="list-item__hint">Solo disponible para editar su posición en el storefront.</span>
+                    )}
                   </div>
-                  <div className="list-item__toolbar">
-                    <button type="button" className="list-item__edit" onClick={() => openEditModal('category', category)}>
-                      Modificar
-                    </button>
-                    <button type="button" className="list-item__delete" onClick={() => openDeleteModal('category', category)}>
-                      Eliminar
-                    </button>
-                  </div>
+                  {!isDecantsCard ? (
+                    <div className="list-item__toolbar">
+                      <button type="button" className="list-item__edit" onClick={() => openEditModal('category', category)}>
+                        Modificar
+                      </button>
+                      <button type="button" className="list-item__delete" onClick={() => openDeleteModal('category', category)}>
+                        Eliminar
+                      </button>
+                    </div>
+                  ) : null}
 
-                  {expandedCategoryIds.includes(category._id) ? (
+                  {isExpanded ? (
                     <div className="category-linked-products">
                       {(categoryProductsMap.get(category._id) || []).length ? (
                         (categoryProductsMap.get(category._id) || []).map((product) => (
@@ -1990,7 +2178,8 @@ function App() {
                     </div>
                   ) : null}
                 </div>
-              ))}
+                )
+              })}
             </div>
           </article>
         </section>
@@ -2319,7 +2508,8 @@ function App() {
               {orders.map((order) => (
                 <div key={order._id} className="order-row">
                   <div>
-                    <strong>{order.product?.name || 'Producto sin referencia'}</strong>
+                    <strong>{getOrderTitle(order)}</strong>
+                    <span>{order.reference || 'Sin referencia'}</span>
                     <span>{formatDate(order.createdAt)}</span>
                   </div>
                   <div>
@@ -2329,7 +2519,7 @@ function App() {
                     <span>{order.customer?.email}</span>
                   </div>
                   <div>
-                    <strong>{order.customer?.phone}</strong>
+                    <strong>{`${order.customer?.phoneCountryCode || '+57'} ${order.customer?.phone || ''}`.trim()}</strong>
                     <span>{order.customer?.city}</span>
                   </div>
                   <div>
@@ -2345,16 +2535,73 @@ function App() {
                     <span>
                       {order.couponName
                         ? `${order.couponName} · -${formatCurrency(order.discountAmount || 0)}`
-                        : 'Sin cupón'}
+                        : getPaymentMethodLabel(order.paymentMethod)}
                     </span>
                   </div>
                   <button type="button" className="table-row__edit" onClick={() => openTrackingModal(order)}>
-                    Añadir número de seguimiento
+                    Agregar tracking
                   </button>
                 </div>
               ))}
 
               {!orders.length ? <p className="empty-state">Todavía no hay órdenes registradas.</p> : null}
+            </div>
+          </article>
+        </section>
+      )
+    }
+
+    if (activePage === 'pre-ordenes') {
+      return (
+        <section className="admin-section">
+          {dashboardMessage ? <p className="status-note">{dashboardMessage}</p> : null}
+          <article className="admin-card">
+            <div className="card-heading">
+              <p className="eyebrow">Módulo 05A</p>
+              <h3>Pre órdenes</h3>
+              <p>
+                Aquí aparecen los clientes que dieron click en comprar con efectivo contra entrega.
+                Cuando confirmes que el cliente ordenó, se moverá automáticamente a Órdenes.
+              </p>
+            </div>
+
+            <div className="order-list">
+              {preOrders.map((preOrder) => (
+                <div key={preOrder._id} className="order-row">
+                  <div>
+                    <strong>{getOrderTitle(preOrder)}</strong>
+                    <span>{preOrder.reference || 'Sin referencia'}</span>
+                    <span>{formatDate(preOrder.createdAt)}</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {preOrder.customer?.firstName} {preOrder.customer?.lastName}
+                    </strong>
+                    <span>{preOrder.customer?.email}</span>
+                  </div>
+                  <div>
+                    <strong>{`${preOrder.customer?.phoneCountryCode || '+57'} ${preOrder.customer?.phone || ''}`.trim()}</strong>
+                    <span>{preOrder.shippingPlace || preOrder.customer?.city || 'Sin ciudad'}</span>
+                  </div>
+                  <div>
+                    <strong>{getPaymentMethodLabel(preOrder.paymentMethod)}</strong>
+                    <span>{preOrder.shippingEta || 'Preparando confirmación'}</span>
+                  </div>
+                  <div>
+                    <strong>{formatCurrency(preOrder.totalAmount || 0)}</strong>
+                    <span>
+                      {preOrder.discountAmount > 0
+                        ? `Descuento: -${formatCurrency(preOrder.discountAmount)}`
+                        : 'Sin descuento'}
+                    </span>
+                  </div>
+                  <button type="button" className="table-row__edit" onClick={() => handleConfirmPreOrder(preOrder)}>
+                    Cliente ordenó
+                  </button>
+                </div>
+              ))}
+
+              {!preOrders.length ? <p className="empty-state">Todavía no hay pre órdenes registradas.</p> : null}
             </div>
           </article>
         </section>
@@ -2633,17 +2880,29 @@ function App() {
           </div>
         </div>
       ) : null}
-      {successMessage ? (
+      {successState.message ? (
         <div className="modal-backdrop modal-backdrop--light" onClick={closeSuccessModal}>
           <div className="success-modal" onClick={(event) => event.stopPropagation()}>
             <div className="success-modal__icon" aria-hidden="true">
               <SuccessIcon />
             </div>
             <p className="eyebrow">Operacion completada</p>
-            <h3>{successMessage}</h3>
-            <button type="button" className="success-modal__button" onClick={closeSuccessModal}>
-              Entendido
-            </button>
+            <h3>{successState.message}</h3>
+            <div className="success-modal__actions">
+              {successState.action?.href ? (
+                <a
+                  className="success-modal__link"
+                  href={successState.action.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {successState.action.label || 'Abrir acción'}
+                </a>
+              ) : null}
+              <button type="button" className="success-modal__button" onClick={closeSuccessModal}>
+                Entendido
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

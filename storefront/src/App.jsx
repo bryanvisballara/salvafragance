@@ -11,6 +11,7 @@ const defaultWhatsAppMessage = 'Hola, estoy interesado en comprar sus productos.
 const fallbackImage =
   'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=900&q=80'
 const otherShippingOptionId = '__other__'
+const phoneCountryOptions = ['+57', '+1', '+52', '+54', '+56', '+58', '+51', '+593', '+34']
 const colombiaStates = [
   'Amazonas',
   'Antioquia',
@@ -49,6 +50,16 @@ const colombiaStates = [
 
 function buildWhatsAppUrl(message = defaultWhatsAppMessage) {
   return `https://wa.me/${whatsappPhoneNumber}?text=${encodeURIComponent(message)}`
+}
+
+function normalizePhoneNumber(countryCode, phone) {
+  const normalizedCountryCode = String(countryCode || '+57').replace(/\D/g, '')
+  const normalizedPhone = String(phone || '').replace(/\D/g, '')
+  return `${normalizedCountryCode}${normalizedPhone}`
+}
+
+function formatCustomerPhone(countryCode, phone) {
+  return `${countryCode || '+57'} ${String(phone || '').trim()}`.trim()
 }
 
 function formatCurrency(value) {
@@ -123,7 +134,7 @@ function buildCheckoutWhatsAppLink(checkoutPayload, totalAmount) {
     '',
     `Cliente: ${customerName}`,
     `Documento: ${checkoutPayload.customer.documentType} ${checkoutPayload.customer.documentNumber}`,
-    `Teléfono: ${checkoutPayload.customer.phone}`,
+    `Teléfono: ${formatCustomerPhone(checkoutPayload.customer.phoneCountryCode, checkoutPayload.customer.phone)}`,
     `Correo: ${checkoutPayload.customer.email}`,
     `Dirección: ${checkoutPayload.customer.address}, ${checkoutPayload.customer.neighborhood}`,
     `Ciudad: ${checkoutPayload.customer.city}, ${checkoutPayload.customer.state}`,
@@ -173,11 +184,19 @@ function getProductRatingData(product) {
 }
 
 function formatDeliveryEstimate() {
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() + 5)
+  const estimatedDate = new Date()
+  let remainingBusinessDays = 3
 
-  const endDate = new Date(startDate)
-  endDate.setDate(endDate.getDate() + 1)
+  while (remainingBusinessDays > 0) {
+    estimatedDate.setDate(estimatedDate.getDate() + 1)
+
+    const dayOfWeek = estimatedDate.getDay()
+    const isBusinessDay = dayOfWeek !== 0 && dayOfWeek !== 6
+
+    if (isBusinessDay) {
+      remainingBusinessDays -= 1
+    }
+  }
 
   const formatter = new Intl.DateTimeFormat('es-CO', {
     weekday: 'long',
@@ -186,8 +205,8 @@ function formatDeliveryEstimate() {
   })
 
   return {
-    label: 'Entrega estimada entre',
-    range: `${formatter.format(startDate)} y ${formatter.format(endDate)}.`,
+    label: 'Entrega prevista para el',
+    range: `${formatter.format(estimatedDate)}.`,
   }
 }
 
@@ -613,13 +632,27 @@ function CheckoutPage({
 
             <label className="checkout-field">
               <span>Número de teléfono</span>
-              <input
-                type="tel"
-                value={formValues.phone}
-                onChange={(event) => onFieldChange('phone', event.target.value)}
-                autoComplete="tel"
-                required
-              />
+              <div className="checkout-phone-field">
+                <select
+                  className="checkout-phone-field__code"
+                  value={formValues.phoneCountryCode}
+                  onChange={(event) => onFieldChange('phoneCountryCode', event.target.value)}
+                  aria-label="Código de país"
+                >
+                  {phoneCountryOptions.map((countryCode) => (
+                    <option key={countryCode} value={countryCode}>
+                      {countryCode}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  value={formValues.phone}
+                  onChange={(event) => onFieldChange('phone', event.target.value)}
+                  autoComplete="tel-national"
+                  required
+                />
+              </div>
             </label>
 
             <label className="checkout-field">
@@ -1242,6 +1275,7 @@ function App() {
     lastName: '',
     documentType: '',
     documentNumber: '',
+    phoneCountryCode: '+57',
     phone: '',
     email: '',
     paymentMethod: '',
@@ -1264,6 +1298,7 @@ function App() {
   const [quickViewProduct, setQuickViewProduct] = useState(null)
   const [confirmationProductName, setConfirmationProductName] = useState('')
   const [decantQuantities, setDecantQuantities] = useState({})
+  const [selectedDecantSizes, setSelectedDecantSizes] = useState({})
   const { confirmationState, isConfirmationVisible, showConfirmation, startClosingConfirmation } = useCartConfirmation()
 
   useEffect(() => {
@@ -1292,6 +1327,32 @@ function App() {
     () => payload.products.some((product) => getVisibleDecantPrices(product, payload.decantSettings).length > 0),
     [payload.decantSettings, payload.products],
   )
+
+  const categoryChips = useMemo(() => {
+    const chips = payload.categories.map((category, index) => ({
+      id: category._id,
+      label: category.name,
+      sortOrder: Number.isFinite(Number(category.sortOrder)) ? Number(category.sortOrder) : index,
+    }))
+
+    if (hasDecantProducts) {
+      chips.push({
+        id: 'decants',
+        label: 'Decants',
+        sortOrder: Number.isFinite(Number(payload.decantSettings?.sortOrder))
+          ? Number(payload.decantSettings.sortOrder)
+          : chips.length,
+      })
+    }
+
+    return chips.sort((leftChip, rightChip) => {
+      if (leftChip.sortOrder !== rightChip.sortOrder) {
+        return leftChip.sortOrder - rightChip.sortOrder
+      }
+
+      return leftChip.id === 'decants' ? 1 : -1
+    })
+  }, [hasDecantProducts, payload.categories, payload.decantSettings])
 
   useEffect(() => {
     if (activeCategory === 'decants' && !hasDecantProducts) {
@@ -1440,6 +1501,13 @@ function App() {
     setDecantQuantities((current) => ({
       ...current,
       [quantityKey]: Math.max(1, nextQuantity),
+    }))
+  }
+
+  function handleSelectedDecantSizeChange(productId, sizeId) {
+    setSelectedDecantSizes((current) => ({
+      ...current,
+      [productId]: sizeId,
     }))
   }
 
@@ -1727,6 +1795,7 @@ function App() {
           coupon: checkoutPayload.coupon,
           paymentMethod: checkoutPayload.paymentMethod,
           baseSubtotalAmount: cartBaseSubtotal,
+          subtotalAmount: cartSubtotal,
           discountAmount: Math.max(0, cartBaseSubtotal - cartSubtotal) + checkoutDiscountAmount,
           surchargeAmount: cartSurchargeAmount,
           totalAmount: cartTotalAmount,
@@ -1749,7 +1818,7 @@ function App() {
       nextUrl.searchParams.set('amount', String(cartTotalAmount))
       nextUrl.searchParams.set('currency', 'COP')
       nextUrl.searchParams.set('customer_email', purchaseForm.email)
-      nextUrl.searchParams.set('customer_phone', purchaseForm.phone)
+      nextUrl.searchParams.set('customer_phone', normalizePhoneNumber(purchaseForm.phoneCountryCode, purchaseForm.phone))
       nextUrl.searchParams.set('customer_name', `${purchaseForm.firstName} ${purchaseForm.lastName}`.trim())
       nextUrl.searchParams.set('customer_address', purchaseForm.address)
       nextUrl.searchParams.set('customer_neighborhood', purchaseForm.neighborhood)
@@ -1871,25 +1940,15 @@ function App() {
                 >
                   Todas
                 </button>
-                {hasDecantProducts ? (
+                {categoryChips.map((chip, index) => (
                   <button
                     type="button"
-                    className={activeCategory === 'decants' ? 'chip chip--active' : 'chip'}
-                    onClick={() => setActiveCategory('decants')}
-                    style={{ '--enter-delay': '90ms' }}
+                    key={chip.id}
+                    className={activeCategory === chip.id ? 'chip chip--active' : 'chip'}
+                    onClick={() => setActiveCategory(chip.id)}
+                    style={{ '--enter-delay': `${(index + 1) * 90}ms` }}
                   >
-                    Decants
-                  </button>
-                ) : null}
-                {payload.categories.map((category, index) => (
-                  <button
-                    type="button"
-                    key={category._id}
-                    className={activeCategory === category._id ? 'chip chip--active' : 'chip'}
-                    onClick={() => setActiveCategory(category._id)}
-                    style={{ '--enter-delay': `${(index + (hasDecantProducts ? 2 : 1)) * 90}ms` }}
-                  >
-                    {category.name}
+                    {chip.label}
                   </button>
                 ))}
               </div>
@@ -1905,6 +1964,12 @@ function App() {
                     const ratingData = getProductRatingData(product)
                     const visibleDecantPrices = getVisibleDecantPrices(product, payload.decantSettings)
                     const isDecantView = activeCategory === 'decants'
+                    const selectedDecantSizeId = selectedDecantSizes[product._id]
+                    const selectedDecantPrice = visibleDecantPrices.find((item) => item.sizeId === selectedDecantSizeId) || visibleDecantPrices[0] || null
+                    const quantityKey = selectedDecantPrice
+                      ? buildCartItemKey(product._id, { kind: 'decant', sizeId: selectedDecantPrice.sizeId })
+                      : ''
+                    const decantQuantity = quantityKey ? Math.max(1, decantQuantities[quantityKey] || 1) : 1
 
                     return (
                       <article
@@ -1928,52 +1993,57 @@ function App() {
                           <StarRating rating={ratingData.rating} reviews={ratingData.reviews} centered />
                           {isDecantView ? (
                             <>
-                              <div className="decant-price-stack">
-                                {visibleDecantPrices.map((decantPrice) => {
-                                  const quantityKey = buildCartItemKey(product._id, { kind: 'decant', sizeId: decantPrice.sizeId })
-                                  const decantQuantity = Math.max(1, decantQuantities[quantityKey] || 1)
-
-                                  return (
-                                    <div key={decantPrice.sizeId} className="decant-price-stack__item">
-                                      <div className="decant-price-stack__summary">
-                                        <span>{decantPrice.label}</span>
-                                        <strong>{formatCurrency(decantPrice.price)}</strong>
-                                      </div>
-                                      <div className="decant-card-actions">
-                                        <div className="decant-quantity" aria-label={`Cantidad de ${product.name} ${decantPrice.label}`}>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDecantQuantityChange(quantityKey, decantQuantity - 1)}
-                                            aria-label={`Reducir cantidad de ${product.name} ${decantPrice.label}`}
-                                          >
-                                            -
-                                          </button>
-                                          <span>{decantQuantity}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDecantQuantityChange(quantityKey, decantQuantity + 1)}
-                                            aria-label={`Aumentar cantidad de ${product.name} ${decantPrice.label}`}
-                                          >
-                                            +
-                                          </button>
-                                        </div>
+                              {selectedDecantPrice ? (
+                                <div className="decant-price-stack">
+                                  <div className="decant-price-stack__item">
+                                    <label className="decant-selector">
+                                      <span className="decant-selector__label">Selecciona tu decant</span>
+                                      <select
+                                        value={selectedDecantPrice.sizeId}
+                                        onChange={(event) => handleSelectedDecantSizeChange(product._id, event.target.value)}
+                                        aria-label={`Seleccionar tamaño de ${product.name}`}
+                                      >
+                                        {visibleDecantPrices.map((decantPrice) => (
+                                          <option key={decantPrice.sizeId} value={decantPrice.sizeId}>
+                                            {`${decantPrice.label} · ${formatCurrency(decantPrice.price)}`}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                    <div className="decant-card-actions">
+                                      <div className="decant-quantity" aria-label={`Cantidad de ${product.name} ${selectedDecantPrice.label}`}>
                                         <button
                                           type="button"
-                                          className="button-primary decant-card-actions__button"
-                                          onClick={() => handleAddToCartWithConfirmation(product, decantQuantity, {
-                                            kind: 'decant',
-                                            sizeId: decantPrice.sizeId,
-                                            sizeLabel: decantPrice.label,
-                                            unitPrice: decantPrice.price,
-                                          })}
+                                          onClick={() => handleDecantQuantityChange(quantityKey, decantQuantity - 1)}
+                                          aria-label={`Reducir cantidad de ${product.name} ${selectedDecantPrice.label}`}
                                         >
-                                          Agregar al carrito
+                                          -
+                                        </button>
+                                        <span>{decantQuantity}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDecantQuantityChange(quantityKey, decantQuantity + 1)}
+                                          aria-label={`Aumentar cantidad de ${product.name} ${selectedDecantPrice.label}`}
+                                        >
+                                          +
                                         </button>
                                       </div>
+                                      <button
+                                        type="button"
+                                        className="button-primary decant-card-actions__button"
+                                        onClick={() => handleAddToCartWithConfirmation(product, decantQuantity, {
+                                          kind: 'decant',
+                                          sizeId: selectedDecantPrice.sizeId,
+                                          sizeLabel: selectedDecantPrice.label,
+                                          unitPrice: selectedDecantPrice.price,
+                                        })}
+                                      >
+                                        Agregar al carrito
+                                      </button>
                                     </div>
-                                  )
-                                })}
-                              </div>
+                                  </div>
+                                </div>
+                              ) : null}
                             </>
                           ) : (
                             <div className="price-stack price-stack--catalog">

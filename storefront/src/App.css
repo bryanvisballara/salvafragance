@@ -655,6 +655,17 @@
   font-size: 0.9rem;
 }
 
+.checkout-phone-field {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.checkout-phone-field__code {
+  text-align: center;
+  font-weight: 700;
+}
+
 .checkout-field--full {
   grid-column: span 2;
 }
@@ -1788,73 +1799,129 @@
 
 .decant-price-stack {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
 }
 
 .decant-price-stack__item {
   display: grid;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(233, 198, 128, 0.14);
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(233, 198, 128, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .decant-price-stack__summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+}
+
+.decant-selector {
+  display: grid;
+  gap: 6px;
+}
+
+.decant-selector__label {
+  color: var(--gold-soft);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.58rem;
+}
+
+.decant-selector select {
+  width: 100%;
+  min-height: 38px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(233, 198, 128, 0.12);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.82rem;
 }
 
 .decant-price-stack__item span {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .decant-price-stack__item strong {
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .decant-card-actions {
   display: grid;
-  gap: 10px;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
   width: 100%;
 }
 
 .decant-quantity {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
   align-items: center;
   width: 100%;
-  border-radius: 16px;
-  border: 1px solid rgba(233, 198, 128, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(233, 198, 128, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   overflow: hidden;
 }
 
 .decant-quantity button {
-  width: 44px;
-  height: 44px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 32px;
+  height: 34px;
   padding: 0;
+  border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: 0.92rem;
   font-weight: 600;
+  box-shadow: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.decant-quantity button:first-child {
+  border-right: 1px solid rgba(233, 198, 128, 0.14);
+}
+
+.decant-quantity button:last-child {
+  border-left: 1px solid rgba(233, 198, 128, 0.14);
+}
+
+.decant-quantity button:focus,
+.decant-quantity button:focus-visible,
+.decant-quantity button:hover,
+.decant-quantity button:active {
+  outline: none;
+  box-shadow: none;
+  background: rgba(233, 198, 128, 0.06);
 }
 
 .decant-quantity span {
   color: var(--text-primary);
   text-align: center;
   font-weight: 600;
+  font-size: 0.84rem;
 }
 
 .decant-card-actions__button {
   width: 100%;
   min-width: 0;
+  min-height: 34px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
 }
 
 .product-actions {
@@ -1898,6 +1965,11 @@
 
 .purchase-form textarea {
   resize: vertical;
+}
+
+.checkout-phone-field input,
+.checkout-phone-field select {
+  min-width: 0;
 }
 
 .purchase-form__full,
@@ -2145,6 +2217,10 @@
     font-size: 0.88rem;
   }
 
+  .checkout-phone-field {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
   .purchase-form input:not([type='checkbox']),
   .purchase-form select,
   .purchase-form textarea,
@@ -2271,12 +2347,40 @@
   }
 
   .cart-sidebar__item {
-    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-columns: 72px minmax(0, 1fr) 34px;
+    grid-template-areas:
+      'media copy remove'
+      'media total remove'
+      'media quantity quantity';
+    align-items: start;
+    gap: 12px 14px;
+  }
+
+  .cart-sidebar__media {
+    grid-area: media;
+  }
+
+  .cart-sidebar__copy {
+    grid-area: copy;
+    gap: 4px;
+  }
+
+  .cart-sidebar__remove {
+    position: static;
+    grid-area: remove;
+    justify-self: end;
+    align-self: start;
   }
 
   .cart-sidebar__line-total {
-    grid-column: 2;
+    grid-area: total;
+    justify-self: start;
     padding-top: 0;
+  }
+
+  .cart-quantity--sidebar {
+    grid-area: quantity;
+    width: fit-content;
   }
 
   .product-hover-actions {
@@ -2753,37 +2857,60 @@
   }
 
   .decant-price-stack {
-    gap: 5px;
+    gap: 4px;
   }
 
   .decant-price-stack__item {
-    padding: 7px 8px;
-    border-radius: 12px;
-    gap: 8px;
+    padding: 6px 7px;
+    border-radius: 11px;
+    gap: 6px;
   }
 
   .decant-price-stack__item span,
   .decant-price-stack__item strong {
+    font-size: 0.7rem;
+  }
+
+  .decant-selector {
+    gap: 5px;
+  }
+
+  .decant-selector__label {
+    font-size: 0.52rem;
+    letter-spacing: 0.1em;
+  }
+
+  .decant-selector select {
+    min-height: 34px;
+    padding: 8px 10px;
+    border-radius: 10px;
     font-size: 0.74rem;
   }
 
   .decant-card-actions {
-    gap: 8px;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 6px;
   }
 
   .decant-quantity {
-    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    min-height: 30px;
   }
 
   .decant-quantity button {
-    width: 40px;
-    height: 40px;
-    font-size: 1rem;
+    width: 28px;
+    height: 30px;
+    font-size: 0.82rem;
+  }
+
+  .decant-quantity span {
+    font-size: 0.78rem;
   }
 
   .decant-card-actions__button {
-    padding: 10px 12px;
-    font-size: 0.82rem;
+    min-height: 30px;
+    padding: 7px 10px;
+    font-size: 0.7rem;
   }
 
   .product-card,
@@ -2822,9 +2949,15 @@
   }
 
   .cart-sidebar__item {
-    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr) 32px;
     gap: 12px;
     padding: 18px 0;
+  }
+
+  .cart-sidebar__remove {
+    width: 32px;
+    height: 32px;
+    font-size: 1.05rem;
   }
 
   .cart-sidebar__media img {
@@ -2832,7 +2965,6 @@
   }
 
   .cart-sidebar__line-total {
-    grid-column: 2;
     justify-self: start;
     padding-top: 0;
   }

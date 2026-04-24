@@ -621,6 +621,10 @@
   gap: 6px;
 }
 
+.order-row > button {
+  justify-self: end;
+}
+
 .coupon-list {
   display: grid;
   gap: 12px;
@@ -1298,6 +1302,25 @@ button:hover {
 
 .success-modal h3 {
   margin: 0;
+}
+
+.success-modal__actions {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.success-modal__link {
+  min-width: 180px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 15, 6, 0.14);
+  background: rgba(20, 15, 6, 0.92);
+  color: #fff7ea;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .danger-modal__icon {
