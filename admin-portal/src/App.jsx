@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:10000/api'
+const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+const apiBaseUrl = import.meta.env.VITE_API_URL || (isLocalHost ? 'http://localhost:10000/api' : 'https://salvafragance.onrender.com/api')
 const sidebarBrandImageUrl = `${import.meta.env.BASE_URL}sidebar-brand.jpeg`
+const loginBrandImageUrl = `${import.meta.env.BASE_URL}login-brand.jpeg`
+const adminBasePath = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+const adminHomePath = adminBasePath ? `${adminBasePath}/` : '/'
+const adminLoginPath = adminBasePath ? `${adminBasePath}/login` : '/login'
 
 const emptyCategoryForm = { name: '', description: '' }
 const emptyProductForm = {
@@ -176,6 +181,7 @@ function App() {
   const [dashboardMessage, setDashboardMessage] = useState('')
   const [productFiles, setProductFiles] = useState([])
   const [isUploadingImages, setIsUploadingImages] = useState(false)
+  const [deletingImageUrl, setDeletingImageUrl] = useState('')
   const [isSendingMarketingEmail, setIsSendingMarketingEmail] = useState(false)
   const [expandedProductDescriptions, setExpandedProductDescriptions] = useState({})
 
@@ -513,6 +519,53 @@ function App() {
     }
   }
 
+  async function handleRemovePendingProductFile(fileIndex) {
+    setProductFiles((current) => current.filter((_, index) => index !== fileIndex))
+  }
+
+  async function handleRemoveUploadedProductImage(imageUrl) {
+    if (!imageUrl) {
+      return
+    }
+
+    if (productForm.imageUrls.length === 1 && !productFiles.length) {
+      setDashboardMessage('La publicación debe conservar al menos una imagen.')
+      return
+    }
+
+    setDeletingImageUrl(imageUrl)
+
+    try {
+      await apiRequest('/uploads/product-images', {
+        method: 'DELETE',
+        body: JSON.stringify({
+          imageUrl,
+          productId: modalState.mode === 'edit' && modalState.item ? modalState.item._id : undefined,
+        }),
+      })
+
+      setProductForm((current) => ({
+        ...current,
+        imageUrls: current.imageUrls.filter((currentImageUrl) => currentImageUrl !== imageUrl),
+      }))
+      setProducts((current) =>
+        current.map((product) =>
+          product._id === modalState.item?._id
+            ? {
+                ...product,
+                imageUrls: (product.imageUrls || []).filter((currentImageUrl) => currentImageUrl !== imageUrl),
+              }
+            : product,
+        ),
+      )
+      setDashboardMessage('')
+    } catch (error) {
+      setDashboardMessage(error.message)
+    } finally {
+      setDeletingImageUrl('')
+    }
+  }
+
   async function loadDashboardData(activeToken = token) {
     setIsLoading(true)
 
@@ -576,7 +629,7 @@ function App() {
       return
     }
 
-    const nextPath = isAuthenticated ? '/' : '/login'
+    const nextPath = isAuthenticated ? adminHomePath : adminLoginPath
 
     if (window.location.pathname !== nextPath) {
       window.history.replaceState(null, '', `${nextPath}${window.location.search}`)
@@ -662,7 +715,7 @@ function App() {
       }
 
       const uploadedImageUrls = await uploadProductImages(productFiles)
-      const imageUrls = uploadedImageUrls.length ? uploadedImageUrls : productForm.imageUrls
+      const imageUrls = [...productForm.imageUrls, ...uploadedImageUrls]
 
       if (!imageUrls.length) {
         throw new Error('Debes subir al menos una imagen para la publicación.')
@@ -1110,8 +1163,18 @@ function App() {
               </label>
               {productFilePreviewUrls.length ? (
                 <div className="uploaded-preview-grid uploaded-preview-grid--pending">
-                  {productFilePreviewUrls.map((file) => (
-                    <img key={file.previewUrl} src={file.previewUrl} alt={file.fileName} className="uploaded-preview" />
+                  {productFilePreviewUrls.map((file, index) => (
+                    <div key={file.previewUrl} className="uploaded-preview-card">
+                      <button
+                        type="button"
+                        className="uploaded-preview__remove"
+                        aria-label={`Borrar ${file.fileName}`}
+                        onClick={() => handleRemovePendingProductFile(index)}
+                      >
+                        x
+                      </button>
+                      <img src={file.previewUrl} alt={file.fileName} className="uploaded-preview" />
+                    </div>
                   ))}
                 </div>
               ) : null}
@@ -1128,10 +1191,21 @@ function App() {
               </label>
               <div className="uploaded-preview-grid">
                 {productForm.imageUrls.map((imageUrl) => (
-                  <img key={imageUrl} src={imageUrl} alt="Vista previa del perfume" className="uploaded-preview" />
+                  <div key={imageUrl} className="uploaded-preview-card">
+                    <button
+                      type="button"
+                      className="uploaded-preview__remove"
+                      aria-label="Borrar imagen subida"
+                      onClick={() => handleRemoveUploadedProductImage(imageUrl)}
+                      disabled={deletingImageUrl === imageUrl}
+                    >
+                      {deletingImageUrl === imageUrl ? '...' : 'x'}
+                    </button>
+                    <img src={imageUrl} alt="Vista previa del perfume" className="uploaded-preview" />
+                  </div>
                 ))}
               </div>
-              <button type="submit" disabled={isUploadingImages}>
+              <button type="submit" disabled={isUploadingImages || Boolean(deletingImageUrl)}>
                 {isUploadingImages
                   ? 'Subiendo imágenes...'
                   : isEdit
@@ -1400,8 +1474,7 @@ function App() {
       <main className="auth-shell">
         <section className="auth-hero">
           <div className="brand-mark" aria-hidden="true">
-            <span>S</span>
-            <span>F</span>
+            <img src={loginBrandImageUrl} alt="" />
           </div>
           <p className="eyebrow">Portal Administrativo</p>
           <h1>Saval Fragance</h1>
@@ -1437,7 +1510,7 @@ function App() {
                 onChange={(event) =>
                   setLoginData((current) => ({ ...current, password: event.target.value }))
                 }
-                placeholder="123456"
+                placeholder=""
               />
             </label>
 
