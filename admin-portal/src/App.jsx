@@ -1184,16 +1184,36 @@ function App() {
     event.preventDefault()
 
     try {
-      const updatedOrder = await apiRequest(`/orders/${modalState.item._id}/tracking`, {
+      const result = await apiRequest(`/orders/${modalState.item._id}/tracking`, {
         method: 'PUT',
         body: JSON.stringify(trackingForm),
       })
+
+      const updatedOrder = result.order
+      const emailDelivery = result.emailDelivery || { sent: false, skipped: false, error: '' }
 
       setOrders((current) =>
         current.map((order) => (order._id === updatedOrder._id ? updatedOrder : order)),
       )
       closeModal()
-      showSuccess('Tracking agregado y correo enviado al cliente.', {
+
+      if (emailDelivery.sent) {
+        showSuccess('Tracking agregado y correo enviado al cliente.', {
+          label: 'Abrir WhatsApp',
+          href: buildTrackingWhatsAppLink(updatedOrder),
+        })
+        return
+      }
+
+      if (emailDelivery.skipped) {
+        showSuccess('Tracking agregado, pero el correo no se envió porque Brevo no está configurado en el backend.', {
+          label: 'Abrir WhatsApp',
+          href: buildTrackingWhatsAppLink(updatedOrder),
+        })
+        return
+      }
+
+      showSuccess('Tracking agregado, pero el correo al cliente falló.', {
         label: 'Abrir WhatsApp',
         href: buildTrackingWhatsAppLink(updatedOrder),
       })
