@@ -79,9 +79,9 @@ export function buildOrderPlacedEmail({ customerName, orderReference, items, tot
     intro: 'Tu orden fue confirmada correctamente y nuestro equipo ya la está preparando con el cuidado y detalle que merece.',
     accent: 'linear-gradient(135deg,#f3d393,#bf8b32)',
     body: `
-      <p style="margin:0 0 14px;color:#efe7da;line-height:1.7;">${orderReference ? `La orden <strong>${escapeHtml(orderReference)}</strong> fue registrada correctamente.` : 'Tu compra fue registrada correctamente.'} Muy pronto recibirás un nuevo correo con la guía de seguimiento.</p>
+      <p style="margin:0 0 14px;color:#24180f;line-height:1.7;">${orderReference ? `La orden <strong>${escapeHtml(orderReference)}</strong> fue registrada correctamente.` : 'Tu compra fue registrada correctamente.'} Muy pronto recibirás un nuevo correo con la guía de seguimiento.</p>
       ${buildOrderSummaryCard({ items, totalAmount, shippingPlace })}
-      <p style="margin:14px 0 0;color:#c8b89b;line-height:1.7;">Gracias por confiar en una selección pensada para hacerte sentir distinto desde el primer acorde.</p>
+      <p style="margin:14px 0 0;color:#6d5943;line-height:1.7;">Gracias por confiar en una selección pensada para hacerte sentir distinto desde el primer acorde.</p>
     `,
   })
 }
@@ -94,19 +94,19 @@ export function buildTrackingEmail({ customerName, orderReference, items, totalA
     accent: 'linear-gradient(135deg,#d7efff,#7db8ff)',
     body: `
       <div style="display:grid;gap:14px;">
-        <div style="padding:16px;border-radius:18px;background:rgba(255,255,255,0.03);border:1px solid rgba(233,198,128,0.14);">
-          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#d9bc84;">Transportadora</div>
-          <div style="margin-top:6px;font-size:24px;color:#fff7ea;font-weight:700;">${shippingCarrier}</div>
+        <div style="padding:16px;border-radius:18px;background:#fff7ea;border:1px solid #ecdfc8;">
+          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#8a6420;">Transportadora</div>
+          <div style="margin-top:6px;font-size:24px;color:#24180f;font-weight:700;">${shippingCarrier}</div>
         </div>
-        <div style="padding:16px;border-radius:18px;background:rgba(255,255,255,0.03);border:1px solid rgba(233,198,128,0.14);">
-          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#d9bc84;">Número de seguimiento</div>
-          <div style="margin-top:6px;font-size:24px;color:#fff7ea;font-weight:700;">${trackingNumber}</div>
+        <div style="padding:16px;border-radius:18px;background:#fff7ea;border:1px solid #ecdfc8;">
+          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#8a6420;">Número de seguimiento</div>
+          <div style="margin-top:6px;font-size:24px;color:#24180f;font-weight:700;">${trackingNumber}</div>
         </div>
         ${buildOrderSummaryCard({
           items,
           totalAmount,
           shippingPlace,
-          extraLine: `<p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Transportadora:</strong> ${escapeHtml(shippingCarrier)} · <strong>Guía:</strong> ${escapeHtml(trackingNumber)}</p>`,
+          extraLine: `<p style="margin:0;color:#24180f;line-height:1.7;"><strong>Transportadora:</strong> ${escapeHtml(shippingCarrier)} · <strong>Guía:</strong> ${escapeHtml(trackingNumber)}</p>`,
         })}
       </div>
     `,
@@ -128,19 +128,19 @@ export function buildAdminOrderNotificationEmail({
     .map(
       (item) => `
         <tr>
-          <td style="padding:12px 0;color:#efe7da;vertical-align:top;">
+          <td style="padding:12px 0;color:#24180f;vertical-align:top;">
             <strong>${escapeHtml(item.name)}</strong><br />
-            <span style="color:#c8b89b;font-size:13px;">${item.quantity} x ${escapeHtml(item.unitPriceLabel)}</span>
+            <span style="color:#6d5943;font-size:13px;">${item.quantity} x ${escapeHtml(item.unitPriceLabel)}</span>
           </td>
-          <td style="padding:12px 0;color:#fff7ea;text-align:right;vertical-align:top;font-weight:700;">${escapeHtml(item.lineTotalLabel)}</td>
+          <td style="padding:12px 0;color:#2d1c10;text-align:right;vertical-align:top;font-weight:700;">${escapeHtml(item.lineTotalLabel)}</td>
         </tr>
       `,
     )
     .join('')
 
   const couponMarkup = coupon
-    ? `<p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Cupón:</strong> ${escapeHtml(coupon.name)} (${escapeHtml(coupon.discountAmountLabel)})</p>`
-    : '<p style="margin:0;color:#c8b89b;line-height:1.7;">No se aplicó cupón.</p>'
+    ? `<p style="margin:0;color:#24180f;line-height:1.7;"><strong>Cupón:</strong> ${escapeHtml(coupon.name)} (${escapeHtml(coupon.discountAmountLabel)})</p>`
+    : '<p style="margin:0;color:#6d5943;line-height:1.7;">No se aplicó cupón.</p>'
 
   return shellTemplate({
     title: `Orden ${escapeHtml(reference)}`,
@@ -150,25 +150,25 @@ export function buildAdminOrderNotificationEmail({
     body: `
       <div style="display:grid;gap:18px;">
         <div style="display:grid;gap:8px;">
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Referencia:</strong> ${escapeHtml(reference)}</p>
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Cliente:</strong> ${escapeHtml(customerName)}</p>
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Correo:</strong> ${escapeHtml(customer.email)}</p>
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Teléfono:</strong> ${escapeHtml(customer.phone)}</p>
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Documento:</strong> ${escapeHtml(customer.documentType)} ${escapeHtml(customer.documentNumber)}</p>
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Dirección:</strong> ${escapeHtml(customer.address)}, ${escapeHtml(customer.neighborhood)}, ${escapeHtml(customer.city)}, ${escapeHtml(customer.state)}</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Referencia:</strong> ${escapeHtml(reference)}</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Cliente:</strong> ${escapeHtml(customerName)}</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Correo:</strong> ${escapeHtml(customer.email)}</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Teléfono:</strong> ${escapeHtml(customer.phone)}</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Documento:</strong> ${escapeHtml(customer.documentType)} ${escapeHtml(customer.documentNumber)}</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Dirección:</strong> ${escapeHtml(customer.address)}, ${escapeHtml(customer.neighborhood)}, ${escapeHtml(customer.city)}, ${escapeHtml(customer.state)}</p>
         </div>
-        <div style="padding:16px;border-radius:18px;background:rgba(255,255,255,0.03);border:1px solid rgba(233,198,128,0.14);">
-          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#d9bc84;margin-bottom:8px;">Productos</div>
+        <div style="padding:16px;border-radius:18px;background:#fff7ea;border:1px solid #ecdfc8;">
+          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#8a6420;margin-bottom:8px;">Productos</div>
           <table style="width:100%;border-collapse:collapse;">
             <tbody>${itemsMarkup}</tbody>
           </table>
         </div>
         <div style="display:grid;gap:8px;">
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Subtotal base:</strong> ${escapeHtml(baseSubtotalAmount)}</p>
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Descuento aplicado:</strong> ${escapeHtml(discountAmount)}</p>
-          <p style="margin:0;color:#efe7da;line-height:1.7;"><strong>Envío:</strong> ${escapeHtml(shippingZone.place)} (${escapeHtml(shippingZone.priceLabel)})</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Subtotal base:</strong> ${escapeHtml(baseSubtotalAmount)}</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Descuento aplicado:</strong> ${escapeHtml(discountAmount)}</p>
+          <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Envío:</strong> ${escapeHtml(shippingZone.place)} (${escapeHtml(shippingZone.priceLabel)})</p>
           ${couponMarkup}
-          <p style="margin:0;color:#fff7ea;line-height:1.7;font-size:18px;"><strong>Total:</strong> ${escapeHtml(totalAmount)}</p>
+          <p style="margin:0;color:#2d1c10;line-height:1.7;font-size:18px;"><strong>Total:</strong> ${escapeHtml(totalAmount)}</p>
         </div>
       </div>
     `,
