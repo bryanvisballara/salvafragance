@@ -1260,6 +1260,19 @@ function App() {
     }
   }
 
+  async function handleMarkPreOrderNotOrdered(preOrder) {
+    try {
+      await apiRequest(`/preorders/${preOrder._id}/not-ordered`, {
+        method: 'POST',
+      })
+
+      setPreOrders((current) => current.filter((currentPreOrder) => currentPreOrder._id !== preOrder._id))
+      showSuccess('La pre orden fue retirada de esta lista. El cliente sigue guardado en base de datos y Marketing.')
+    } catch (error) {
+      setDashboardMessage(error.message)
+    }
+  }
+
   async function handleCouponSubmit(event) {
     event.preventDefault()
 
@@ -2632,9 +2645,18 @@ function App() {
                         : 'Sin descuento'}
                     </span>
                   </div>
-                  <button type="button" className="table-row__edit" onClick={() => handleConfirmPreOrder(preOrder)}>
-                    Cliente ordenó
-                  </button>
+                  <div className="order-row__actions">
+                    <button type="button" className="table-row__edit" onClick={() => handleConfirmPreOrder(preOrder)}>
+                      Cliente ordenó
+                    </button>
+                    <button
+                      type="button"
+                      className="order-row__dismiss"
+                      onClick={() => handleMarkPreOrderNotOrdered(preOrder)}
+                    >
+                      Cliente no ordenó
+                    </button>
+                  </div>
                 </div>
               ))}
 

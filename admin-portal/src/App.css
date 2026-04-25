@@ -625,6 +625,23 @@
   justify-self: end;
 }
 
+.order-row__actions {
+  justify-self: end;
+  display: grid;
+  gap: 10px;
+}
+
+.order-row__dismiss {
+  color: #fff0dc;
+  background: rgba(125, 58, 27, 0.34);
+  border: 1px solid rgba(226, 146, 86, 0.32);
+}
+
+.order-row__dismiss:hover {
+  filter: none;
+  background: rgba(142, 67, 31, 0.44);
+}
+
 .order-row__status {
   justify-self: end;
   display: inline-flex;
@@ -632,9 +649,9 @@
   min-height: 44px;
   padding: 0 16px;
   border-radius: 999px;
-  border: 1px solid rgba(233, 198, 128, 0.18);
-  background: rgba(233, 198, 128, 0.08);
-  color: var(--text-primary);
+  border: 1px solid rgba(118, 168, 187, 0.28);
+  background: rgba(73, 108, 122, 0.22);
+  color: #d8edf6;
   font-weight: 600;
 }
 
