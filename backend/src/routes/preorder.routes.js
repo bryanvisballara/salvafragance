@@ -58,8 +58,14 @@ router.post(
       status: 'preparing',
     })
 
+    let emailDelivery = {
+      sent: false,
+      skipped: false,
+      error: '',
+    }
+
     try {
-      await sendBrevoEmail({
+      const delivery = await sendBrevoEmail({
         to: {
           email: preOrder.customer.email,
           name: `${preOrder.customer.firstName} ${preOrder.customer.lastName}`,
@@ -73,20 +79,35 @@ router.post(
           shippingPlace: preOrder.shippingPlace,
         }),
       })
+
+      emailDelivery = {
+        sent: !delivery?.skipped,
+        skipped: Boolean(delivery?.skipped),
+        error: '',
+      }
     } catch (error) {
       console.error('Preorder confirmation email failed', error)
+
+      emailDelivery = {
+        sent: false,
+        skipped: false,
+        error: error.message,
+      }
     }
 
     await PreOrder.findByIdAndDelete(preOrder._id)
 
-    response.status(201).json(
-      await Order.findById(order._id)
+    const populatedOrder = await Order.findById(order._id)
         .populate('customer')
         .populate('product', 'name')
         .populate('items.product', 'name')
         .populate('coupon', 'name discountType discountValue')
-        .lean(),
-    )
+        .lean()
+
+    response.status(201).json({
+      order: populatedOrder,
+      emailDelivery,
+    })
   }),
 )
 
