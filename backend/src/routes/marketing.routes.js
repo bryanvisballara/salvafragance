@@ -13,16 +13,18 @@ function buildMarketingEmail({ subject, message, customerName }) {
   const body = String(message || '').trim().replaceAll('\n', '<br />')
 
   return `
-    <div style="margin:0;background:#0b0b0d;padding:32px 16px;font-family:Arial,sans-serif;color:#f6efe5;">
-      <div style="max-width:640px;margin:0 auto;background:linear-gradient(180deg,#17120d 0%,#0d0c0a 100%);border:1px solid rgba(233,198,128,0.22);border-radius:28px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.35);">
-        <div style="padding:32px;background:radial-gradient(circle at top, rgba(214,170,84,0.22), transparent 36%);">
-          <div style="display:inline-block;padding:8px 12px;border:1px solid rgba(233,198,128,0.28);border-radius:999px;color:#f1d08f;letter-spacing:0.2em;font-size:11px;text-transform:uppercase;">Saval Fragance</div>
-          <h1 style="margin:18px 0 10px;font-size:34px;line-height:1;color:#fff7ea;font-family:Georgia,serif;">${subject}</h1>
-          <p style="margin:0;color:#c8b89b;font-size:16px;line-height:1.6;">Hola ${customerName},</p>
+    <div style="margin:0;background:#f4efe6;padding:32px 16px;font-family:Arial,sans-serif;color:#24180f;">
+      <div style="max-width:640px;margin:0 auto;background:#fffdf9;border:1px solid #e7d7bc;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(43,26,14,0.12);">
+        <div style="padding:32px;background:linear-gradient(180deg,#fff8ef 0%,#f8efe2 100%);border-bottom:1px solid #efe1c9;">
+          <div style="display:inline-block;padding:8px 12px;border:1px solid #d8ba7f;border-radius:999px;color:#8a6420;letter-spacing:0.2em;font-size:11px;text-transform:uppercase;font-weight:700;">Saval Fragance</div>
+          <h1 style="margin:18px 0 10px;font-size:34px;line-height:1;color:#2d1c10;font-family:Georgia,serif;">${subject}</h1>
+          <p style="margin:0;color:#5f4a35;font-size:16px;line-height:1.6;">Hola ${customerName},</p>
         </div>
         <div style="padding:0 32px 32px;">
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(233,198,128,0.14);border-radius:22px;padding:22px;color:#efe7da;line-height:1.7;">${body}</div>
-          <p style="margin:22px 0 0;color:#a9997d;font-size:13px;line-height:1.6;">Mensaje promocional enviado por Saval Fragance.</p>
+          <div style="background:#fffbf4;border:1px solid #ecdfc8;border-radius:22px;padding:22px;color:#24180f;line-height:1.7;">
+            <div style="color:#24180f;">${body}</div>
+          </div>
+          <p style="margin:22px 0 0;color:#6d5943;font-size:13px;line-height:1.6;">Mensaje promocional enviado por Saval Fragance.</p>
         </div>
       </div>
     </div>
