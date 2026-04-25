@@ -389,7 +389,6 @@ function App() {
   const [isUploadingImages, setIsUploadingImages] = useState(false)
   const [deletingImageUrl, setDeletingImageUrl] = useState('')
   const [draggedCategoryId, setDraggedCategoryId] = useState('')
-  const [categoryDropTargetId, setCategoryDropTargetId] = useState('')
   const [isSavingCategoryOrder, setIsSavingCategoryOrder] = useState(false)
   const [isSavingDecantSettings, setIsSavingDecantSettings] = useState(false)
   const [savingProductDecantId, setSavingProductDecantId] = useState('')
@@ -984,7 +983,6 @@ function App() {
 
   function handleCategoryDragStart(categoryId, event) {
     setDraggedCategoryId(categoryId)
-    setCategoryDropTargetId(categoryId)
 
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move'
@@ -992,27 +990,20 @@ function App() {
     }
   }
 
-  function handleCategoryDragEnter(categoryId) {
-    if (!draggedCategoryId || draggedCategoryId === categoryId) {
-      return
-    }
-
-    setCategoryDropTargetId(categoryId)
-  }
-
   function resetCategoryDragState() {
     setDraggedCategoryId('')
-    setCategoryDropTargetId('')
   }
 
-  async function handleCategoryDrop(targetCategoryId) {
-    if (!draggedCategoryId) {
+  async function handleCategoryDrop(targetCategoryId, event) {
+    const droppedCategoryId = event.dataTransfer?.getData('text/plain') || draggedCategoryId
+
+    if (!droppedCategoryId) {
       return
     }
 
     const previousCategories = categories
     const previousDecantSettings = decantSettings
-    const nextOrderItems = reorderCategoryList(orderedCategoryItems, draggedCategoryId, targetCategoryId)
+    const nextOrderItems = reorderCategoryList(orderedCategoryItems, droppedCategoryId, targetCategoryId)
 
     resetCategoryDragState()
 
@@ -1213,13 +1204,29 @@ function App() {
 
   async function handleConfirmPreOrder(preOrder) {
     try {
-      const confirmedOrder = await apiRequest(`/preorders/${preOrder._id}/confirm`, {
+      const result = await apiRequest(`/preorders/${preOrder._id}/confirm`, {
         method: 'POST',
       })
 
+      const confirmedOrder = result.order
+      const emailDelivery = result.emailDelivery || { sent: false, skipped: false, error: '' }
+
       setPreOrders((current) => current.filter((currentPreOrder) => currentPreOrder._id !== preOrder._id))
       setOrders((current) => [confirmedOrder, ...current])
-      showSuccess('El cliente fue movido a Órdenes y recibió el correo de confirmación.')
+
+      if (emailDelivery.sent) {
+        showSuccess('El cliente fue movido a Órdenes y recibió el correo de confirmación.')
+        return
+      }
+
+      if (emailDelivery.skipped) {
+        showSuccess(
+          'El cliente fue movido a Órdenes, pero el correo no se envió porque Brevo no está configurado en el backend.',
+        )
+        return
+      }
+
+      showSuccess('El cliente fue movido a Órdenes, pero el correo de confirmación falló.')
     } catch (error) {
       setDashboardMessage(error.message)
     }
@@ -2107,13 +2114,11 @@ function App() {
                   className={[
                     'list-item list-item--category',
                     draggedCategoryId === category._id ? 'list-item--dragging' : '',
-                    categoryDropTargetId === category._id ? 'list-item--drop-target' : '',
                   ].filter(Boolean).join(' ')}
                   draggable={!isSavingCategoryOrder}
                   onDragStart={(event) => handleCategoryDragStart(category._id, event)}
-                  onDragEnter={() => handleCategoryDragEnter(category._id)}
                   onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => handleCategoryDrop(category._id)}
+                  onDrop={(event) => handleCategoryDrop(category._id, event)}
                   onDragEnd={resetCategoryDragState}
                   onClick={(event) => {
                     if (isDecantsCard) {
