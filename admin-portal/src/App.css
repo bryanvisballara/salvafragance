@@ -625,6 +625,19 @@
   justify-self: end;
 }
 
+.order-row__status {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(233, 198, 128, 0.18);
+  background: rgba(233, 198, 128, 0.08);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .coupon-list {
   display: grid;
   gap: 12px;

@@ -2571,9 +2571,13 @@ function App() {
                         : getPaymentMethodLabel(order.paymentMethod)}
                     </span>
                   </div>
-                  <button type="button" className="table-row__edit" onClick={() => openTrackingModal(order)}>
-                    Agregar tracking
-                  </button>
+                  {order.status === 'shipped' || order.trackingNumber ? (
+                    <span className="order-row__status">Orden enviada</span>
+                  ) : (
+                    <button type="button" className="table-row__edit" onClick={() => openTrackingModal(order)}>
+                      Agregar tracking
+                    </button>
+                  )}
                 </div>
               ))}
 
