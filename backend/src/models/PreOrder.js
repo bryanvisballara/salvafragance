@@ -102,6 +102,12 @@ const preOrderSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    status: {
+      type: String,
+      enum: ['pending', 'not_ordered'],
+      default: 'pending',
+      index: true,
+    },
   },
   { timestamps: true },
 )

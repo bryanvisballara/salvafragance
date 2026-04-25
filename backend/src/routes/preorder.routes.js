@@ -14,13 +14,30 @@ router.use(requireAuth)
 router.get(
   '/',
   asyncHandler(async (_request, response) => {
-    const preOrders = await PreOrder.find()
+    const preOrders = await PreOrder.find({ status: 'pending' })
       .populate('customer')
       .populate('items.product', 'name')
       .sort({ createdAt: -1 })
       .lean()
 
     response.json(preOrders)
+  }),
+)
+
+router.post(
+  '/:id/not-ordered',
+  asyncHandler(async (request, response) => {
+    const preOrder = await PreOrder.findByIdAndUpdate(
+      request.params.id,
+      { $set: { status: 'not_ordered' } },
+      { new: true },
+    )
+
+    if (!preOrder) {
+      throw createHttpError(404, 'Preorder not found')
+    }
+
+    response.json({ ok: true, preOrder })
   }),
 )
 

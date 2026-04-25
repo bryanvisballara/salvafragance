@@ -231,6 +231,7 @@ router.post(
             shippingPlace: shippingZone.place.trim(),
             shippingPrice: Number(shippingZone.price || 0),
             shippingEta: shippingZone.eta?.trim() || '',
+            status: 'pending',
           },
         },
         {
