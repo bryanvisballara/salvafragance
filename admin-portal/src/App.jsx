@@ -440,13 +440,18 @@ function App() {
 
     const startOfWeek = getStartOfWeek(now)
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const productPriceMap = new Map(
-      products.map((product) => [product._id, Number(product.offerPrice || 0)]),
-    )
-
     const getOrderAmount = (order) => {
-      const productId = order.product?._id || order.product
-      return productPriceMap.get(productId) || 0
+      const totalAmount = Number(order.totalAmount || 0)
+
+      if (totalAmount > 0) {
+        return totalAmount
+      }
+
+      if (Array.isArray(order.items) && order.items.length) {
+        return order.items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0)
+      }
+
+      return Number(order.product?.offerPrice || 0)
     }
 
     const salesToday = orders.reduce((total, order) => {
@@ -473,7 +478,7 @@ function App() {
       { label: 'Ventas de la semana', value: formatCurrency(salesThisWeek) },
       { label: 'Ventas del mes', value: formatCurrency(salesThisMonth) },
     ]
-  }, [categories.length, customers.length, orders, products, shippingZones.length])
+  }, [categories.length, customers.length, orders, shippingZones.length])
 
   const filteredCustomers = useMemo(() => {
     const normalizedFilter = customerFilter.trim().toLowerCase()
