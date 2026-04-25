@@ -1213,7 +1213,11 @@ function App() {
         return
       }
 
-      showSuccess('Tracking agregado, pero el correo al cliente falló.', {
+      const trackingFailureMessage = emailDelivery.error
+        ? `Tracking agregado, pero el correo al cliente falló. Detalle: ${emailDelivery.error}`
+        : 'Tracking agregado, pero el correo al cliente falló.'
+
+      showSuccess(trackingFailureMessage, {
         label: 'Abrir WhatsApp',
         href: buildTrackingWhatsAppLink(updatedOrder),
       })
@@ -1246,7 +1250,11 @@ function App() {
         return
       }
 
-      showSuccess('El cliente fue movido a Órdenes, pero el correo de confirmación falló.')
+      showSuccess(
+        emailDelivery.error
+          ? `El cliente fue movido a Órdenes, pero el correo de confirmación falló. Detalle: ${emailDelivery.error}`
+          : 'El cliente fue movido a Órdenes, pero el correo de confirmación falló.',
+      )
     } catch (error) {
       setDashboardMessage(error.message)
     }
