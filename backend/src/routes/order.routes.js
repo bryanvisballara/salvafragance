@@ -50,8 +50,14 @@ router.put(
     order.trackingSentAt = new Date()
     await order.save()
 
+    let emailDelivery = {
+      sent: false,
+      skipped: false,
+      error: '',
+    }
+
     try {
-      await sendBrevoEmail({
+      const delivery = await sendBrevoEmail({
         to: {
           email: order.customer.email,
           name: `${order.customer.firstName} ${order.customer.lastName}`,
@@ -77,18 +83,33 @@ router.put(
           trackingNumber,
         }),
       })
+
+      emailDelivery = {
+        sent: !delivery?.skipped,
+        skipped: Boolean(delivery?.skipped),
+        error: '',
+      }
     } catch (error) {
       console.error('Tracking email failed', error)
+
+      emailDelivery = {
+        sent: false,
+        skipped: false,
+        error: error.message,
+      }
     }
 
-    response.json(
-      await Order.findById(order.id)
+    const updatedOrder = await Order.findById(order.id)
         .populate('customer')
         .populate('product', 'name')
         .populate('items.product', 'name')
         .populate('coupon', 'name discountType discountValue')
-        .lean(),
-    )
+        .lean()
+
+    response.json({
+      order: updatedOrder,
+      emailDelivery,
+    })
   }),
 )
 
