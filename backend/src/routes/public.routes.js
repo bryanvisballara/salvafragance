@@ -170,7 +170,13 @@ router.post(
     const adminEmail = process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL
     const normalizedItems = normalizeOrderItems(items)
     const partner = coupon?.id ? await findPartnerByCouponId(coupon.id) : null
-    const partnerSaleData = buildPartnerSaleData({ partner, coupon })
+    const partnerSaleData = buildPartnerSaleData({
+      partner,
+      coupon: {
+        ...coupon,
+        totalAmount,
+      },
+    })
 
     if (!reference || !customer.firstName?.trim() || !customer.lastName?.trim() || !customer.email?.trim() || !customer.phone?.trim()) {
       throw createHttpError(400, 'Order notification data is incomplete')
@@ -340,7 +346,13 @@ router.post(
     const coupon = couponName ? await resolveCouponForProduct({ couponName, productId }) : null
     const partner = coupon?._id ? await findPartnerByCouponId(coupon._id) : null
     const pricing = buildCouponPricing({ product, coupon })
-    const partnerSaleData = buildPartnerSaleData({ partner, coupon })
+    const partnerSaleData = buildPartnerSaleData({
+      partner,
+      coupon: {
+        ...coupon,
+        totalAmount: pricing.totalAmount,
+      },
+    })
 
     const customer = await Customer.create({
       firstName,

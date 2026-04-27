@@ -83,10 +83,17 @@ export function buildPartnerSaleData({ partner, coupon }) {
     }
   }
 
+  const commissionType = partner.commissionType === 'percentage' ? 'percentage' : 'fixed'
+  const configuredCommission = Number(partner.commissionAmount || 0)
+  const saleAmount = Number(coupon.totalAmount || coupon.saleAmount || 0)
+  const partnerCommissionAmount = commissionType === 'percentage'
+    ? Math.max(0, Math.round((saleAmount * configuredCommission) / 100))
+    : Math.max(0, configuredCommission)
+
   return {
     partner: partner._id,
     partnerCouponName: coupon.name || '',
-    partnerCommissionAmount: Number(partner.commissionAmount || 0),
+    partnerCommissionAmount,
   }
 }
 

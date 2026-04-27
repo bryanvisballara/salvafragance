@@ -28,6 +28,11 @@ const adminUserSchema = new mongoose.Schema(
       ref: 'Coupon',
       default: null,
     },
+    commissionType: {
+      type: String,
+      enum: ['fixed', 'percentage'],
+      default: 'fixed',
+    },
     commissionAmount: {
       type: Number,
       default: 0,

@@ -19,6 +19,7 @@ function serializePartner(partner) {
     email: partner.email,
     name: partner.name || '',
     role: partner.role,
+    commissionType: partner.commissionType === 'percentage' ? 'percentage' : 'fixed',
     commissionAmount: Number(partner.commissionAmount || 0),
     assignedCoupon: partner.assignedCoupon
       ? {
@@ -107,6 +108,24 @@ async function ensureCouponAvailable(couponId, currentPartnerId = null) {
   return coupon
 }
 
+function normalizeCommissionInput(commissionType, commissionAmount) {
+  const normalizedType = commissionType === 'percentage' ? 'percentage' : 'fixed'
+  const normalizedAmount = Number(commissionAmount || 0)
+
+  if (Number.isNaN(normalizedAmount) || normalizedAmount < 0) {
+    throw createHttpError(400, 'La comisión por venta debe ser un número válido')
+  }
+
+  if (normalizedType === 'percentage' && normalizedAmount > 100) {
+    throw createHttpError(400, 'La comisión porcentual no puede ser mayor a 100')
+  }
+
+  return {
+    commissionType: normalizedType,
+    commissionAmount: normalizedAmount,
+  }
+}
+
 router.use(requireAuth)
 
 router.get(
@@ -170,15 +189,14 @@ router.post(
     const email = request.body.email?.trim().toLowerCase()
     const password = request.body.password || ''
     const name = request.body.name?.trim() || ''
-    const commissionAmount = Number(request.body.commissionAmount || 0)
+    const { commissionType, commissionAmount } = normalizeCommissionInput(
+      request.body.commissionType,
+      request.body.commissionAmount,
+    )
     const couponId = request.body.couponId || null
 
     if (!email || !password || !name) {
       throw createHttpError(400, 'Nombre, correo y contraseña son obligatorios')
-    }
-
-    if (Number.isNaN(commissionAmount) || commissionAmount < 0) {
-      throw createHttpError(400, 'La comisión por venta debe ser un número válido')
     }
 
     await ensureCouponAvailable(couponId)
@@ -195,6 +213,7 @@ router.post(
       role: 'partner',
       passwordHash: await hashPassword(password),
       assignedCoupon: couponId,
+      commissionType,
       commissionAmount,
     })
 
@@ -215,15 +234,14 @@ router.put(
     const email = request.body.email?.trim().toLowerCase()
     const name = request.body.name?.trim() || ''
     const password = request.body.password || ''
-    const commissionAmount = Number(request.body.commissionAmount || 0)
+    const { commissionType, commissionAmount } = normalizeCommissionInput(
+      request.body.commissionType,
+      request.body.commissionAmount,
+    )
     const couponId = request.body.couponId || null
 
     if (!email || !name) {
       throw createHttpError(400, 'Nombre y correo son obligatorios')
-    }
-
-    if (Number.isNaN(commissionAmount) || commissionAmount < 0) {
-      throw createHttpError(400, 'La comisión por venta debe ser un número válido')
     }
 
     await ensureCouponAvailable(couponId, partner._id)
@@ -237,6 +255,7 @@ router.put(
     partner.email = email
     partner.name = name
     partner.assignedCoupon = couponId
+    partner.commissionType = commissionType
     partner.commissionAmount = commissionAmount
 
     if (password) {
