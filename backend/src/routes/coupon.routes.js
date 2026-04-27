@@ -2,12 +2,12 @@ import { Router } from 'express'
 import { asyncHandler } from '../lib/async-handler.js'
 import { createHttpError } from '../lib/http-error.js'
 import { normalizeCouponName } from '../lib/coupons.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 import Coupon from '../models/Coupon.js'
 
 const router = Router()
 
-router.use(requireAuth)
+router.use(requireAuth, requireRole('admin', 'operator'))
 
 router.get(
   '/',

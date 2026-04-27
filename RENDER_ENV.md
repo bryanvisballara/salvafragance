@@ -10,6 +10,8 @@ JWT_SECRET=salvafragance_admin_change_this_secret
 ADMIN_EMAIL=joyeriacrispin6@gmail.com
 ADMIN_ORDER_EMAIL=joyeriacrispin6@gmail.com
 ADMIN_PASSWORD=123456
+OPERATOR_EMAIL=andrisfontalvo9@gmail.com
+OPERATOR_PASSWORD=010203
 CLIENT_URL=https://savalfragance.com,https://www.savalfragance.com,https://salvafragance.onrender.com
 BREVO_API_KEY=<tu_brevo_api_key>
 BREVO_SENDER_EMAIL=orders@savalfragance.com
@@ -33,7 +35,18 @@ Notas
 
 - En MongoDB Atlas conviene usar una base especifica, por ejemplo `salvafragance`.
 - `ADMIN_EMAIL` y `ADMIN_PASSWORD` corresponden al seed inicial del login administrativo.
+- `OPERATOR_EMAIL` y `OPERATOR_PASSWORD` crean o actualizan el usuario operario con acceso a ordenes, preordenes, marketing y cupones.
 - `ADMIN_ORDER_EMAIL` es opcional; si existe, recibira las notificaciones de nuevas ordenes del checkout. Si no existe, se usa `ADMIN_EMAIL`.
 - `JWT_SECRET` debe cambiarse por un valor largo y privado antes de produccion real.
 - Brevo enviara el correo de pedido recibido y el correo con numero de seguimiento.
 - Cloudinary requiere `CLOUDINARY_CLOUD_NAME`; debe ser el cloud name tecnico exacto de tu consola. En este proyecto el valor valido es `duh2g4lo0`.
+*** Add File: /Users/usuario/Desktop/saval fragance/repo/hostinger/storefront/.htaccess
+DirectoryIndex index.html
+
+RewriteEngine On
+RewriteBase /storefront/
+
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /storefront/index.html [L]

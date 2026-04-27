@@ -1,12 +1,12 @@
 import { Router } from 'express'
 import { asyncHandler } from '../lib/async-handler.js'
 import { createHttpError } from '../lib/http-error.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 import ShippingZone from '../models/ShippingZone.js'
 
 const router = Router()
 
-router.use(requireAuth)
+router.use(requireAuth, requireRole('admin'))
 
 router.get(
   '/',

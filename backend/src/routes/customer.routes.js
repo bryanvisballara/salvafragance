@@ -1,11 +1,11 @@
 import { Router } from 'express'
 import { asyncHandler } from '../lib/async-handler.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 import Customer from '../models/Customer.js'
 
 const router = Router()
 
-router.use(requireAuth)
+router.use(requireAuth, requireRole('admin', 'operator'))
 
 router.get(
   '/',

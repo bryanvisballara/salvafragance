@@ -109,11 +109,7 @@ function getPaymentMethodLabel(paymentMethod) {
 }
 
 function getCashOnDeliverySurcharge(baseTotalAmount, paymentMethod) {
-  if (paymentMethod !== 'cash_on_delivery') {
-    return 0
-  }
-
-  return baseTotalAmount * 0.05
+  return 0
 }
 
 function buildCheckoutWhatsAppLink(checkoutPayload, totalAmount) {
@@ -125,9 +121,6 @@ function buildCheckoutWhatsAppLink(checkoutPayload, totalAmount) {
   const discountLabel = checkoutPayload.discountAmount > 0
     ? `Descuento: ${formatCurrency(checkoutPayload.discountAmount)}`
     : 'Descuento: Sin descuento'
-  const surchargeLabel = checkoutPayload.surchargeAmount > 0
-    ? `Recargo contra entrega: ${formatCurrency(checkoutPayload.surchargeAmount)}`
-    : null
 
   return buildWhatsAppUrl([
     `Hola, quiero confirmar mi pedido ${checkoutPayload.reference}.`,
@@ -146,7 +139,6 @@ function buildCheckoutWhatsAppLink(checkoutPayload, totalAmount) {
     `Subtotal: ${formatCurrency(checkoutPayload.subtotalAmount)}`,
     discountLabel,
     `Envío (${checkoutPayload.shippingZone.place}): ${formatCurrency(checkoutPayload.shippingZone.price)}`,
-    ...(surchargeLabel ? [surchargeLabel] : []),
     `Total: ${formatCurrency(totalAmount)}`,
   ].join('\n'))
 }
@@ -815,10 +807,6 @@ function CheckoutPage({
             <div>
               <span>Envío</span>
               <strong>{selectedShippingZone ? formatCurrency(shippingAmount) : 'Por seleccionar'}</strong>
-            </div>
-            <div>
-              <span>Recargo contra entrega</span>
-              <strong>{surchargeAmount > 0 ? formatCurrency(surchargeAmount) : 'No aplica'}</strong>
             </div>
             <div className="checkout-totals__coupon">
               <span>Cupón</span>

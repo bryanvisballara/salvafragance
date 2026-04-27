@@ -1,0 +1,9 @@
+DirectoryIndex index.html
+
+RewriteEngine On
+RewriteBase /storefront/
+
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /storefront/index.html [L]

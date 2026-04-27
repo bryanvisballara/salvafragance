@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { asyncHandler } from '../lib/async-handler.js'
 import { createHttpError } from '../lib/http-error.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 import Category from '../models/Category.js'
 import Coupon from '../models/Coupon.js'
 import DecantSettings from '../models/DecantSettings.js'
@@ -9,7 +9,7 @@ import Product from '../models/Product.js'
 
 const router = Router()
 
-router.use(requireAuth)
+router.use(requireAuth, requireRole('admin'))
 
 async function normalizeDecantPrices(rawDecantPrices) {
   const decantPrices = Array.isArray(rawDecantPrices) ? rawDecantPrices : []

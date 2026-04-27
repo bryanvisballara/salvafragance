@@ -3,13 +3,13 @@ import { asyncHandler } from '../lib/async-handler.js'
 import { sendBrevoEmail } from '../lib/brevo.js'
 import { buildOrderPlacedEmail } from '../lib/email-templates.js'
 import { createHttpError } from '../lib/http-error.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 import Order from '../models/Order.js'
 import PreOrder from '../models/PreOrder.js'
 
 const router = Router()
 
-router.use(requireAuth)
+router.use(requireAuth, requireRole('admin', 'operator'))
 
 router.get(
   '/',

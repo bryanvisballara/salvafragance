@@ -1633,7 +1633,7 @@
 
 .product-carousel {
   position: relative;
-  min-height: 250px;
+  height: clamp(220px, 24vw, 280px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1648,7 +1648,6 @@
   display: block;
   width: 100%;
   height: 100%;
-  min-height: inherit;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1659,7 +1658,7 @@
 .product-image {
   width: 100%;
   height: 100%;
-  min-height: 250px;
+  object-position: center;
   object-fit: cover;
   display: block;
 }
@@ -2163,7 +2162,7 @@
   }
 
   .detail-gallery__stage {
-    min-height: 440px;
+    height: clamp(360px, 44vw, 540px);
   }
 
   .topbar__wordmark {
@@ -2615,13 +2614,11 @@
   }
 
   .product-carousel {
-    min-height: 154px;
+    height: 136px;
     border-radius: 20px;
-    padding: 6px 6px 0;
   }
 
   .product-image {
-    min-height: 148px;
     border-radius: 16px;
   }
 
@@ -2843,17 +2840,21 @@
   }
 
   .product-body {
-    gap: 6px;
-    padding: 10px 8px;
+    gap: 5px;
+    padding: 8px 6px;
   }
 
   .product-body h3 {
-    font-size: 0.84rem;
+    font-size: 0.76rem;
     max-width: 100%;
   }
 
+  .price-stack--catalog span {
+    font-size: 0.72rem;
+  }
+
   .price-stack--catalog strong {
-    font-size: 0.92rem;
+    font-size: 0.84rem;
   }
 
   .decant-price-stack {
@@ -2915,24 +2916,22 @@
 
   .product-card,
   .product-card--catalog {
-    gap: 6px;
+    gap: 5px;
   }
 
   .product-carousel {
-    min-height: 126px;
+    height: 96px;
     border-radius: 18px;
-    padding: 6px 6px 0;
   }
 
   .product-image {
-    min-height: 120px;
     border-radius: 14px;
   }
 
   .product-meta {
     gap: 4px;
-    font-size: 0.5rem;
-    letter-spacing: 0.16em;
+    font-size: 0.46rem;
+    letter-spacing: 0.12em;
   }
 
   .product-action {
@@ -3072,12 +3071,13 @@
 
   .detail-gallery__stage,
   .product-detail--modal .detail-gallery__stage {
-    min-height: 260px;
+    height: 260px;
   }
 
   .detail-gallery__image,
   .product-detail--modal .detail-gallery__image {
     object-fit: contain;
+    object-position: center;
   }
 
   .detail-actions {

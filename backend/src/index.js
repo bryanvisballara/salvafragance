@@ -15,7 +15,7 @@ import couponRouter from './routes/coupon.routes.js'
 import decantRouter from './routes/decant.routes.js'
 import marketingRouter from './routes/marketing.routes.js'
 import uploadRouter from './routes/upload.routes.js'
-import { seedAdminUser } from './services/seed-admin.js'
+import { seedAdminUsers } from './services/seed-admin.js'
 
 const app = express()
 const port = Number(process.env.PORT || 10000)
@@ -65,7 +65,7 @@ app.use(errorHandler)
 
 async function startServer() {
   await connectDatabase()
-  await seedAdminUser()
+  await seedAdminUsers()
 
   app.listen(port, () => {
     console.log(`Saval Fragance API listening on port ${port}`)

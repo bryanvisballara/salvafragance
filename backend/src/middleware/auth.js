@@ -24,3 +24,20 @@ export async function requireAuth(request, _response, next) {
     next(error.status ? error : createHttpError(401, 'Invalid token'))
   }
 }
+
+export function requireRole(...allowedRoles) {
+  const normalizedRoles = allowedRoles
+    .map((role) => String(role || '').trim().toLowerCase())
+    .filter(Boolean)
+
+  return (request, _response, next) => {
+    const currentRole = String(request.admin?.role || '').trim().toLowerCase()
+
+    if (!currentRole || !normalizedRoles.includes(currentRole)) {
+      next(createHttpError(403, 'You do not have permission to access this resource'))
+      return
+    }
+
+    next()
+  }
+}

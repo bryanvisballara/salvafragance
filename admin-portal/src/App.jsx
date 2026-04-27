@@ -67,6 +67,7 @@ const navigationItems = [
   { id: 'marketing', label: 'Marketing' },
   { id: 'base-de-datos', label: 'Base de datos' },
 ]
+const operatorNavigationIds = new Set(['ordenes', 'pre-ordenes', 'marketing', 'cupones'])
 
 const phoneCountryOptions = [
   { value: '+57', label: 'Colombia (+57)' },
@@ -137,6 +138,22 @@ function formatDecantSize(size) {
 function buildMarketingWhatsAppLink(phone, message) {
   const normalizedPhone = String(phone || '').replace(/\D/g, '')
   return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`
+}
+
+function normalizeAdminRole(role) {
+  return role === 'operator' ? 'operator' : 'admin'
+}
+
+function getAllowedNavigationItems(role) {
+  if (normalizeAdminRole(role) === 'operator') {
+    return navigationItems.filter((item) => operatorNavigationIds.has(item.id))
+  }
+
+  return navigationItems
+}
+
+function getDefaultActivePage(role) {
+  return normalizeAdminRole(role) === 'operator' ? 'ordenes' : 'dashboard'
 }
 
 function normalizePhoneNumber(phoneCountryCode, phone) {
@@ -359,6 +376,7 @@ function App() {
   const [adminEmail, setAdminEmail] = useState(
     () => localStorage.getItem('sf_admin_email') || defaultAdminEmail,
   )
+  const [adminRole, setAdminRole] = useState(() => normalizeAdminRole(localStorage.getItem('sf_admin_role')))
   const [loginData, setLoginData] = useState({ email: adminEmail, password: '' })
   const [loginError, setLoginError] = useState('')
   const [categories, setCategories] = useState([])
@@ -380,7 +398,7 @@ function App() {
   const [marketingFilter, setMarketingFilter] = useState('')
   const [marketingForm, setMarketingForm] = useState(emptyMarketingForm)
   const [selectedMarketingCustomerIds, setSelectedMarketingCustomerIds] = useState([])
-  const [activePage, setActivePage] = useState('dashboard')
+  const [activePage, setActivePage] = useState(() => getDefaultActivePage(localStorage.getItem('sf_admin_role')))
   const [modalState, setModalState] = useState(emptyModalState)
   const [deleteState, setDeleteState] = useState(emptyDeleteState)
   const [successState, setSuccessState] = useState(emptySuccessState)
@@ -420,6 +438,9 @@ function App() {
   )
 
   const isAuthenticated = Boolean(token)
+  const accessibleNavigationItems = useMemo(() => getAllowedNavigationItems(adminRole), [adminRole])
+  const firstAccessiblePage = accessibleNavigationItems[0]?.id || 'dashboard'
+  const sessionRoleLabel = adminRole === 'operator' ? 'Operario' : 'Administrador'
 
   const productFilePreviewUrls = useMemo(
     () => productFiles.map((file) => ({ fileName: file.name, previewUrl: URL.createObjectURL(file) })),
@@ -743,8 +764,10 @@ function App() {
   function handleLogout() {
     setToken('')
     setAdminEmail(defaultAdminEmail)
+    setAdminRole('admin')
     localStorage.removeItem('sf_admin_token')
     localStorage.removeItem('sf_admin_email')
+    localStorage.removeItem('sf_admin_role')
     setLoginData({ email: defaultAdminEmail, password: '' })
     setCategories([])
     setDecantSettings(emptyDecantSettings)
@@ -759,7 +782,7 @@ function App() {
     setSelectedMarketingCustomerIds([])
     setExpandedProductDescriptions({})
     setExpandedCategoryIds([])
-    setActivePage('dashboard')
+    setActivePage(getDefaultActivePage('admin'))
     setDashboardMessage('')
   }
 
@@ -857,16 +880,17 @@ function App() {
     })
   }
 
-  async function loadDashboardData(activeToken = token) {
+  async function loadDashboardData(activeToken = token, activeRole = adminRole) {
     setIsLoading(true)
 
     try {
       const headers = activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
+      const isOperator = normalizeAdminRole(activeRole) === 'operator'
       const [categoryRows, decantRows, productRows, shippingRows, customerRows, orderRows, preOrderRows, couponRows] = await Promise.all([
-        apiRequest('/categories', { headers }),
-        apiRequest('/decants', { headers }),
-        apiRequest('/products', { headers }),
-        apiRequest('/shipping-zones', { headers }),
+        isOperator ? Promise.resolve([]) : apiRequest('/categories', { headers }),
+        isOperator ? Promise.resolve(emptyDecantSettings) : apiRequest('/decants', { headers }),
+        isOperator ? Promise.resolve([]) : apiRequest('/products', { headers }),
+        isOperator ? Promise.resolve([]) : apiRequest('/shipping-zones', { headers }),
         apiRequest('/customers', { headers }),
         apiRequest('/orders', { headers }),
         apiRequest('/preorders', { headers }),
@@ -874,7 +898,7 @@ function App() {
       ])
 
       setCategories(categoryRows)
-  setDecantSettings(decantRows || emptyDecantSettings)
+      setDecantSettings(decantRows || emptyDecantSettings)
       setProducts(productRows)
       setShippingZones(shippingRows)
       setCustomers(customerRows)
@@ -899,9 +923,19 @@ function App() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadDashboardData()
+      loadDashboardData(token, adminRole)
     }
-  }, [isAuthenticated])
+  }, [adminRole, isAuthenticated, token])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
+
+    if (!accessibleNavigationItems.some((item) => item.id === activePage)) {
+      setActivePage(firstAccessiblePage)
+    }
+  }, [accessibleNavigationItems, activePage, firstAccessiblePage, isAuthenticated])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -944,12 +978,15 @@ function App() {
         method: 'POST',
         body: JSON.stringify(loginData),
       })
+      const nextRole = normalizeAdminRole(result.admin.role)
 
       setToken(result.token)
       setAdminEmail(result.admin.email)
-      setActivePage('dashboard')
+      setAdminRole(nextRole)
+      setActivePage(getDefaultActivePage(nextRole))
       localStorage.setItem('sf_admin_token', result.token)
       localStorage.setItem('sf_admin_email', result.admin.email)
+      localStorage.setItem('sf_admin_role', nextRole)
       setLoginData({ email: result.admin.email, password: '' })
     } catch (error) {
       setLoginError(error.message)
@@ -2108,6 +2145,10 @@ function App() {
   }
 
   function renderPage() {
+    if (!accessibleNavigationItems.some((item) => item.id === activePage)) {
+      return null
+    }
+
     if (activePage === 'dashboard') {
       return (
         <section className="admin-section">
@@ -2906,7 +2947,7 @@ function App() {
           </div>
 
           <nav className="sidebar-nav">
-            {navigationItems.map((item) => (
+            {accessibleNavigationItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -2922,6 +2963,7 @@ function App() {
         <div className="sidebar-card">
           <span>Sesión activa</span>
           <strong>{adminEmail}</strong>
+          <span>{sessionRoleLabel}</span>
           <button type="button" onClick={handleLogout}>
             Cerrar sesión
           </button>

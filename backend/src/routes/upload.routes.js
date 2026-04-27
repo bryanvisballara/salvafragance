@@ -4,13 +4,13 @@ import multer from 'multer'
 import { asyncHandler } from '../lib/async-handler.js'
 import { createHttpError } from '../lib/http-error.js'
 import { deleteImageByUrl, uploadImageBuffer } from '../lib/cloudinary.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 import Product from '../models/Product.js'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage() })
 
-router.use(requireAuth)
+router.use(requireAuth, requireRole('admin'))
 
 router.post(
   '/product-images',
