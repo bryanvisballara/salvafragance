@@ -1195,7 +1195,7 @@ function ProductDetailView({ product, onBack, onAddToCart, onBuyNow, onOpenFullP
   )
 }
 
-function QuickViewModal({ product, onClose, onAddToCart, onOpenFullProduct, isConfirmationVisible, onCloseConfirmation }) {
+function QuickViewModal({ product, onClose, onAddToCart, onBuyNow, onOpenFullProduct, isConfirmationVisible, onCloseConfirmation }) {
 
   useEffect(() => {
     function handleEscape(event) {
@@ -1233,6 +1233,7 @@ function QuickViewModal({ product, onClose, onAddToCart, onOpenFullProduct, isCo
         <ProductDetailView
           product={product}
           onAddToCart={onAddToCart}
+          onBuyNow={onBuyNow}
           onOpenFullProduct={onOpenFullProduct}
           isQuickView
         />
@@ -2058,6 +2059,7 @@ function App() {
             product={quickViewProduct}
             onClose={handleCloseQuickView}
             onAddToCart={() => handleAddToCartWithConfirmation(quickViewProduct, 1)}
+            onBuyNow={handleBuyNow}
             onOpenFullProduct={handleOpenProduct}
             isConfirmationVisible={isConfirmationVisible}
             onCloseConfirmation={startClosingConfirmation}

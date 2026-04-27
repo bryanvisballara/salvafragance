@@ -94,7 +94,7 @@ export async function uploadImageBuffer(fileBuffer, fileName) {
         resource_type: 'image',
         format: 'webp',
         transformation: [
-          { quality: 'auto:good', width: 1600, crop: 'limit' },
+          { width: 1080, height: 1080, crop: 'fill', gravity: 'auto', quality: 'auto:good' },
         ],
       },
       (error, result) => {
