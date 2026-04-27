@@ -40,7 +40,7 @@ router.get(
   '/',
   asyncHandler(async (_request, response) => {
     const products = await Product.find()
-      .populate('category', 'name')
+      .populate('category', 'name hasFreeShipping')
       .sort({ createdAt: -1 })
       .lean()
 
@@ -62,6 +62,7 @@ router.post(
     const rating = Number(request.body.rating ?? 0)
     const reviewCount = Number(request.body.reviewCount ?? 0)
     const imageUrls = Array.isArray(request.body.imageUrls) ? request.body.imageUrls : []
+    const hasFreeShipping = Boolean(request.body.hasFreeShipping)
     const decantPrices = await normalizeDecantPrices(request.body.decantPrices)
 
     if (!name || !categoryId || Number.isNaN(basePrice) || Number.isNaN(offerPrice) || Number.isNaN(stock)) {
@@ -96,10 +97,11 @@ router.post(
       rating,
       reviewCount,
       imageUrls,
+      hasFreeShipping,
       decantPrices,
     })
 
-    const populatedProduct = await Product.findById(product.id).populate('category', 'name').lean()
+    const populatedProduct = await Product.findById(product.id).populate('category', 'name hasFreeShipping').lean()
     response.status(201).json(populatedProduct)
   }),
 )
@@ -118,6 +120,7 @@ router.put(
     const rating = Number(request.body.rating ?? 0)
     const reviewCount = Number(request.body.reviewCount ?? 0)
     const imageUrls = Array.isArray(request.body.imageUrls) ? request.body.imageUrls : []
+    const hasFreeShipping = Boolean(request.body.hasFreeShipping)
     const decantPrices = await normalizeDecantPrices(request.body.decantPrices)
 
     if (!name || !categoryId || Number.isNaN(basePrice) || Number.isNaN(offerPrice) || Number.isNaN(stock)) {
@@ -154,6 +157,7 @@ router.put(
         rating,
         reviewCount,
         imageUrls,
+        hasFreeShipping,
         decantPrices,
       },
       { new: true, runValidators: true },
@@ -163,7 +167,7 @@ router.put(
       throw createHttpError(404, 'Product not found')
     }
 
-    const populatedProduct = await Product.findById(product.id).populate('category', 'name').lean()
+    const populatedProduct = await Product.findById(product.id).populate('category', 'name hasFreeShipping').lean()
     response.json(populatedProduct)
   }),
 )
@@ -183,7 +187,7 @@ router.put(
       throw createHttpError(404, 'Product not found')
     }
 
-    const populatedProduct = await Product.findById(product.id).populate('category', 'name').lean()
+    const populatedProduct = await Product.findById(product.id).populate('category', 'name hasFreeShipping').lean()
     response.json(populatedProduct)
   }),
 )

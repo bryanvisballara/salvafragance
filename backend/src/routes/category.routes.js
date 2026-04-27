@@ -24,6 +24,7 @@ router.post(
     const description = typeof request.body.description === 'string'
       ? request.body.description.replace(/\r\n?/g, '\n')
       : ''
+    const hasFreeShipping = Boolean(request.body.hasFreeShipping)
 
     if (!name) {
       throw createHttpError(400, 'Category name is required')
@@ -32,7 +33,12 @@ router.post(
     const lastCategory = await Category.findOne().sort({ sortOrder: -1, createdAt: -1 }).select('sortOrder').lean()
     const nextSortOrder = Number(lastCategory?.sortOrder ?? -1) + 1
 
-    const category = await Category.create({ name, description, sortOrder: nextSortOrder })
+    const category = await Category.create({
+      name,
+      description,
+      sortOrder: nextSortOrder,
+      hasFreeShipping,
+    })
     response.status(201).json(category)
   }),
 )
@@ -106,6 +112,7 @@ router.put(
     const description = typeof request.body.description === 'string'
       ? request.body.description.replace(/\r\n?/g, '\n')
       : ''
+    const hasFreeShipping = Boolean(request.body.hasFreeShipping)
 
     if (!name) {
       throw createHttpError(400, 'Category name is required')
@@ -113,7 +120,7 @@ router.put(
 
     const category = await Category.findByIdAndUpdate(
       request.params.id,
-      { name, description },
+      { name, description, hasFreeShipping },
       { new: true, runValidators: true },
     )
 

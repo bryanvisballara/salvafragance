@@ -85,6 +85,10 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    hasFreeShipping: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 )
