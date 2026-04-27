@@ -5,7 +5,10 @@ export async function sendBrevoEmail({ to, subject, htmlContent }) {
 
   if (!apiKey) {
     console.warn('BREVO_API_KEY is missing. Email skipped.')
-    return { skipped: true }
+    return {
+      skipped: true,
+      reason: 'BREVO_API_KEY is missing',
+    }
   }
 
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {

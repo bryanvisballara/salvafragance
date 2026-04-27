@@ -6,6 +6,7 @@ import { createHttpError } from '../lib/http-error.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import Order from '../models/Order.js'
 import PreOrder from '../models/PreOrder.js'
+import { notifyPartnerSale } from './partner.routes.js'
 
 const router = Router()
 
@@ -65,6 +66,9 @@ router.post(
         lineTotal: item.lineTotal,
       })),
       couponName: preOrder.couponName,
+      partner: preOrder.partner || null,
+      partnerCouponName: preOrder.partnerCouponName || '',
+      partnerCommissionAmount: Number(preOrder.partnerCommissionAmount || 0),
       subtotalAmount: preOrder.subtotalAmount,
       discountAmount: preOrder.discountAmount,
       totalAmount: preOrder.totalAmount,
@@ -112,6 +116,18 @@ router.post(
       }
     }
 
+    if (order.partner) {
+      try {
+        await notifyPartnerSale({
+          partnerId: order.partner,
+          order,
+          customer: preOrder.customer,
+        })
+      } catch (error) {
+        console.error('Partner sale email failed', error)
+      }
+    }
+
     await PreOrder.findByIdAndDelete(preOrder._id)
 
     const populatedOrder = await Order.findById(order._id)
@@ -119,6 +135,7 @@ router.post(
         .populate('product', 'name')
         .populate('items.product', 'name')
         .populate('coupon', 'name discountType discountValue')
+      .populate('partner', 'name email')
         .lean()
 
     response.status(201).json({

@@ -18,6 +18,7 @@ router.get(
       .populate('product', 'name')
       .populate('items.product', 'name')
       .populate('coupon', 'name discountType discountValue')
+      .populate('partner', 'name email commissionAmount assignedCoupon')
       .sort({ createdAt: -1 })
       .lean()
 
@@ -104,6 +105,7 @@ router.put(
         .populate('product', 'name')
         .populate('items.product', 'name')
         .populate('coupon', 'name discountType discountValue')
+      .populate('partner', 'name email commissionAmount assignedCoupon')
         .lean()
 
     response.json({

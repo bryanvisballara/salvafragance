@@ -33,6 +33,7 @@ router.post(
       admin: {
         id: admin.id,
         email: admin.email,
+        name: admin.name || '',
         role: admin.role,
       },
     })

@@ -62,6 +62,21 @@ const preOrderSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    partner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AdminUser',
+      default: null,
+    },
+    partnerCouponName: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    partnerCommissionAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     discountAmount: {
       type: Number,
       default: 0,

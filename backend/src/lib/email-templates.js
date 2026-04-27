@@ -174,3 +174,28 @@ export function buildAdminOrderNotificationEmail({
     `,
   })
 }
+
+export function buildPartnerSaleEmail({
+  partnerName,
+  orderReference,
+  couponName,
+  customerName,
+  totalAmount,
+  commissionAmount,
+}) {
+  return shellTemplate({
+    title: `Venta registrada con ${escapeHtml(couponName)}`,
+    heading: `Hola ${escapeHtml(partnerName || 'socio')}`,
+    intro: 'Se registró una nueva venta usando tu cupón y ya quedó abonada en tu panel.',
+    accent: 'linear-gradient(135deg,#d7efff,#7db8ff)',
+    body: `
+      <div style="display:grid;gap:14px;">
+        <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Referencia:</strong> ${escapeHtml(orderReference)}</p>
+        <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Cliente:</strong> ${escapeHtml(customerName)}</p>
+        <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Cupón:</strong> ${escapeHtml(couponName)}</p>
+        <p style="margin:0;color:#24180f;line-height:1.7;"><strong>Total de la venta:</strong> ${escapeHtml(formatCurrency(totalAmount))}</p>
+        <p style="margin:0;color:#2d1c10;line-height:1.7;font-size:18px;"><strong>Comisión generada:</strong> ${escapeHtml(formatCurrency(commissionAmount))}</p>
+      </div>
+    `,
+  })
+}

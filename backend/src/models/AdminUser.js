@@ -2,6 +2,11 @@ import mongoose from 'mongoose'
 
 const adminUserSchema = new mongoose.Schema(
   {
+    name: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     email: {
       type: String,
       required: true,
@@ -15,8 +20,18 @@ const adminUserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'operator'],
+      enum: ['admin', 'operator', 'partner'],
       default: 'admin',
+    },
+    assignedCoupon: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Coupon',
+      default: null,
+    },
+    commissionAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   { timestamps: true },

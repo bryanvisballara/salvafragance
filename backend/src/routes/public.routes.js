@@ -4,6 +4,8 @@ import { sendBrevoEmail } from '../lib/brevo.js'
 import { buildCartCouponPricing, buildCouponPricing, resolveCouponForCart, resolveCouponForProduct } from '../lib/coupons.js'
 import { buildAdminOrderNotificationEmail, buildOrderPlacedEmail } from '../lib/email-templates.js'
 import { createHttpError } from '../lib/http-error.js'
+import { buildPartnerSaleData, findPartnerByCouponId } from '../lib/partners.js'
+import { notifyPartnerSale } from './partner.routes.js'
 import Category from '../models/Category.js'
 import Customer from '../models/Customer.js'
 import DecantSettings from '../models/DecantSettings.js'
@@ -167,6 +169,8 @@ router.post(
     const totalAmount = Number(request.body.totalAmount || 0)
     const adminEmail = process.env.ADMIN_ORDER_EMAIL || process.env.ADMIN_EMAIL
     const normalizedItems = normalizeOrderItems(items)
+    const partner = coupon?.id ? await findPartnerByCouponId(coupon.id) : null
+    const partnerSaleData = buildPartnerSaleData({ partner, coupon })
 
     if (!reference || !customer.firstName?.trim() || !customer.lastName?.trim() || !customer.email?.trim() || !customer.phone?.trim()) {
       throw createHttpError(400, 'Order notification data is incomplete')
@@ -223,6 +227,9 @@ router.post(
             customer: storedCustomer._id,
             items: normalizedItems,
             couponName: coupon?.name?.trim() || '',
+            partner: partnerSaleData.partner,
+            partnerCouponName: partnerSaleData.partnerCouponName,
+            partnerCommissionAmount: partnerSaleData.partnerCommissionAmount,
             discountAmount,
             subtotalAmount: Number(request.body.subtotalAmount || 0),
             surchargeAmount,
@@ -244,6 +251,7 @@ router.post(
     }
 
     if (!adminEmail) {
+      console.warn('Admin order notification skipped: ADMIN_ORDER_EMAIL and ADMIN_EMAIL are missing')
       response.json({
         notified: false,
         skipped: true,
@@ -288,6 +296,7 @@ router.post(
       response.json({
         notified: !delivery?.skipped,
         skipped: Boolean(delivery?.skipped),
+        reason: delivery?.reason || '',
         customerStored: Boolean(storedCustomer),
         customerId: storedCustomer?._id || null,
       })
@@ -329,7 +338,9 @@ router.post(
     }
 
     const coupon = couponName ? await resolveCouponForProduct({ couponName, productId }) : null
+    const partner = coupon?._id ? await findPartnerByCouponId(coupon._id) : null
     const pricing = buildCouponPricing({ product, coupon })
+    const partnerSaleData = buildPartnerSaleData({ partner, coupon })
 
     const customer = await Customer.create({
       firstName,
@@ -359,6 +370,9 @@ router.post(
       ],
       coupon: coupon?._id || null,
       couponName: coupon?.name || '',
+      partner: partnerSaleData.partner,
+      partnerCouponName: partnerSaleData.partnerCouponName,
+      partnerCommissionAmount: partnerSaleData.partnerCommissionAmount,
       discountType: coupon?.discountType || '',
       discountValue: Number(coupon?.discountValue || 0),
       subtotalAmount: pricing.subtotalAmount,
@@ -385,6 +399,18 @@ router.post(
       })
     } catch (error) {
       console.error('Order placed email failed', error)
+    }
+
+    if (partnerSaleData.partner) {
+      try {
+        await notifyPartnerSale({
+          partnerId: partnerSaleData.partner,
+          order,
+          customer,
+        })
+      } catch (error) {
+        console.error('Partner sale email failed', error)
+      }
     }
 
     response.status(201).json({ customer, order, pricing })
