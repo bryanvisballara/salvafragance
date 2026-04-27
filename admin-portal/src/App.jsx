@@ -347,6 +347,7 @@ function WarningIcon() {
 }
 
 function App() {
+  const defaultAdminEmail = 'joyeriacrispin6@gmail.com'
   const [currentPath, setCurrentPath] = useState(() => {
     if (typeof window === 'undefined') {
       return '/'
@@ -356,7 +357,7 @@ function App() {
   })
   const [token, setToken] = useState(() => localStorage.getItem('sf_admin_token') || '')
   const [adminEmail, setAdminEmail] = useState(
-    () => localStorage.getItem('sf_admin_email') || 'cfrap555@gmail.com',
+    () => localStorage.getItem('sf_admin_email') || defaultAdminEmail,
   )
   const [loginData, setLoginData] = useState({ email: adminEmail, password: '' })
   const [loginError, setLoginError] = useState('')
@@ -741,10 +742,10 @@ function App() {
 
   function handleLogout() {
     setToken('')
-    setAdminEmail('cfrap555@gmail.com')
+    setAdminEmail(defaultAdminEmail)
     localStorage.removeItem('sf_admin_token')
     localStorage.removeItem('sf_admin_email')
-    setLoginData({ email: 'cfrap555@gmail.com', password: '' })
+    setLoginData({ email: defaultAdminEmail, password: '' })
     setCategories([])
     setDecantSettings(emptyDecantSettings)
     setProducts([])
@@ -2081,7 +2082,7 @@ function App() {
                 onChange={(event) =>
                   setLoginData((current) => ({ ...current, email: event.target.value }))
                 }
-                placeholder="cfrap555@gmail.com"
+                placeholder="joyeriacrispin6@gmail.com"
               />
             </label>
 
